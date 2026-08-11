@@ -1,0 +1,3 @@
+[submodule "workspace/standard/spider_eval"]
+	path = workspace/standard/spider_eval
+	url = https://github.com/taoyds/spider.git

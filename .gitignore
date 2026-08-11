@@ -1,2 +1,12 @@
 .DS_Store
 ~$*
+
+# Benchmark datasets are downloaded locally and contain multi-GB archives/databases.
+workspace/dataset/*
+!workspace/dataset/README.md
+
+# Local evaluator dependencies and generated runs.
+workspace/standard/eval_runs/
+workspace/standard/spider_eval/.deps/
+workspace/standard/spider_eval/.nltk_data/
+workspace/standard/spider_eval/__pycache__/
