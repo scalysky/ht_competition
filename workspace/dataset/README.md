@@ -1,10 +1,9 @@
-# Local benchmark datasets
+# 本地基准数据集
 
-Benchmark data is intentionally excluded from Git because the downloaded and
-extracted files contain multi-gigabyte archives and database files that exceed
-normal GitHub limits.
+基准数据不提交到 Git。下载和解压后的内容包含数 GB 的压缩包及数据库文件，
+超过 GitHub 普通仓库的文件大小和容量限制。
 
-Expected local layout:
+本地目录结构应为：
 
 ```text
 workspace/dataset/
@@ -22,15 +21,15 @@ workspace/dataset/
          └─ MINIDEV_postgresql/
 ```
 
-Official sources:
+官方下载地址：
 
-- Spider 1.0: https://yale-lily.github.io/spider
-- Spider Test Suite Accuracy databases: https://github.com/taoyds/test-suite-sql-eval
-- BIRD Mini-Dev: https://github.com/bird-bench/mini_dev
+- Spider 1.0：https://yale-lily.github.io/spider
+- Spider Test Suite Accuracy 数据库：https://github.com/taoyds/test-suite-sql-eval
+- BIRD Mini-Dev：https://github.com/bird-bench/mini_dev
 
-Local verification performed on 2026-08-11:
+2026-08-11 本地校验结果：
 
-- Spider Test Suite ZIP passed CRC validation; 3,194 SQLite instances were extracted.
-- BIRD Mini-Dev ZIP passed CRC validation; all 11 SQLite databases passed
-  `PRAGMA quick_check`.
-- BIRD Mini-Dev contains 500 records for each of SQLite, MySQL, and PostgreSQL.
+- Spider Test Suite 压缩包通过 CRC 校验，共解压出 3,194 个 SQLite 测试实例。
+- BIRD Mini-Dev 压缩包通过 CRC 校验，11 个 SQLite 数据库全部通过
+  `PRAGMA quick_check`。
+- BIRD Mini-Dev 的 SQLite、MySQL 和 PostgreSQL 三种版本各包含 500 条记录。
