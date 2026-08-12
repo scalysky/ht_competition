@@ -1,2 +1,5 @@
 .DS_Store
 ~$*
+.venv/
+workspace/skills/at2s/skills/db-access/access.md
+workspace/skills/at2s/skills/kb-refine/config.md
