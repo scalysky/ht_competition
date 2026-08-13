@@ -1,12 +1,21 @@
 .DS_Store
 ~$*
 
+# Local secrets. Commit only the safe template.
+.env
+.env.*
+!.env.example
+.venv/
+
 # Benchmark datasets are downloaded locally and contain multi-GB archives/databases.
 workspace/dataset/*
 !workspace/dataset/README.md
 
 # Local evaluator dependencies and generated runs.
 workspace/standard/eval_runs/
+workspace/standard/.deps_test_suite/
+workspace/standard/.deps_bird/
 workspace/standard/spider_eval/.deps/
 workspace/standard/spider_eval/.nltk_data/
 workspace/standard/spider_eval/__pycache__/
+workspace/standard/competition_eval/__pycache__/

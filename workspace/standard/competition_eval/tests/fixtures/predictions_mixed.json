@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1,
+    "sql": "SELECT COUNT(*) FROM ads_cust_info_d a LEFT JOIN dim_public b ON a.edu_cd=b.code AND b.code_type_id='600' LEFT JOIN dim_public c ON a.gender_cd=c.code AND c.code_type_id='500' WHERE b.describe IN ('博士','硕士','学士') AND c.describe IN ('男') AND a.cust_age>50"
+  },
+  {
+    "id": 2,
+    "sql": "SELECT 1"
+  },
+  {
+    "id": 3,
+    "sql": "DELETE FROM ads_cust_info_d"
+  }
+]
+

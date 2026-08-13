@@ -1,0 +1,38 @@
+[
+  {
+    "id": 1,
+    "question": "学历本科及以上的男性客户，年龄大于50岁的有多少个",
+    "sql": "select count(*)\nfrom ads_cust_info_d a\nleft join dim_public b on a.edu_cd = b.code and b.code_type_id='600' \nleft join dim_public c on a.gender_cd = c.code and c.code_type_id='500'\nwhere b.describe  in ('博士','硕士','学士') and c.describe in ('男')\nand a.cust_age>50"
+  },
+  {
+    "id": 2,
+    "question": "不同客户年龄段资产分布情况",
+    "sql": "select case when cust_age<30 then '<30'\n     when cust_age>=30 and cust_age<50 then '[30,50)'\n     when cust_age>=50 and cust_age<60 then '[50,60)'\n     when cust_age>=60 then '[60,)'\n    end as cust_age_type\n  ,sum(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)) as aset \nfrom ads_cust_info_d a\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\nwhere a.data_dt='20260531'\ngroup by case when cust_age<30 then '<30'\n     when cust_age>=30 and cust_age<50 then '[30,50)'\n     when cust_age>=50 and cust_age<60 then '[50,60)'\n     when cust_age>=60 then '[60,)'\n    end;"
+  },
+  {
+    "id": 3,
+    "question": "钻石卡男性客户，年龄大于40岁，持有比亚迪市值超过1000元，他在26年Q1的盈亏情况",
+    "sql": "with custinfo as\n(select pty_id\nfrom ads_cust_info_d a \nleft join dim_public b on a.cust_lvl_cd=b.code and b.code_type_id='100'\nleft join dim_public c on a.gender_cd=c.code and c.code_type_id='500'\nwhere b.describe='紫金理财钻石卡客户' and c.describe in ('男')\nand a.cust_age>40\n),\nprdtinfo as\n(select a.pty_id,sum(a.mkt_val) as mkt_val\nfrom dwd_cust_hold_d a\ninner join dim_product b on a.prdt_id=b.prdt_id\nwhere b.prdt_name='比亚迪' and a.data_dt='20260331'\nand exists(select 1 from custinfo z where a.pty_id=z.pty_id)\ngroup by a.pty_id\nhaving sum(a.mkt_val)>1000\n)\nselect a.pty_id\n     ,coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset\n     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset\n     ,coalesce(d.aset_in,0) as aset_in\n     ,coalesce(d.aset_out,0) as aset_out\n     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)-coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)+coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft\nfrom prdtinfo a\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'\nleft join (\nselect pty_id\n      ,sum(cash_in)+sum(tran_in)+sum(assign_in) as aset_in\n      ,sum(cash_out)+sum(tran_out)+sum(assign_out) as aset_out\nfrom dws_cust_fin_d\nwhere data_dt between '20260101' and '20260331'\ngroup by pty_id\n) d on a.pty_id=d.pty_id;"
+  },
+  {
+    "id": 4,
+    "question": "分公司各营业部的客户省份分析统计",
+    "sql": "select b.up_org_name,b.org_name,a.prov_name,a.city_name,count(*) as cnt\nfrom ads_cust_info_d a\ninner join dim_branch b on a.org_id=b.org_id\ngroup by b.up_org_name,b.org_name,a.prov_name,a.city_name"
+  },
+  {
+    "id": 5,
+    "question": "26年Q1交易过招商银行，且26年Q1末普通账户持有中国平安的客户",
+    "sql": "with cust_tran as\n(\nselect pty_id,prdt_id,sum(buy_amt) as buy_tot,sum(sell_amt) as sell_tot \nfrom dwd_cust_tran_d\nwhere data_dt between '20260101' and '20260331' \nand prdt_id in (\nselect prdt_id from dim_product\nwhere prdt_name='招商银行' and prdt_type_name='A股'\n)\ngroup by pty_id,prdt_id\n)\nselect a.pty_id\nfrom cust_tran a\ninner join (\nselect a.*\nfrom dwd_cust_hold_d a\nwhere prdt_id in (select prdt_id from dim_product where prdt_name='中国平安' and prdt_type_name='A股')\nand a.data_dt='20260331' and a.sys_source='nm'\n) b on a.pty_id=b.pty_id"
+  },
+  {
+    "id": 6,
+    "question": "26年Q1日均资产大于30万的客户，股票交易量大于10万的，其持有的产品属于哪些产品大类",
+    "sql": "with cust_avg_30 as \n(\nselect pty_id,round(sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1),2) as avg_aset\nfrom dws_cust_aset_d\ngroup by pty_id\nhaving sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1)>300000\n), cust_tran as\n(\nselect a.pty_id,sum(b.buy_amt)+sum(b.sell_amt) as tran_amt\nfrom dws_cust_aset_d a\nleft join dwd_cust_tran_d b on a.pty_id=b.pty_id and b.data_dt between '20260101' and '20260331'\ninner join dim_product c on b.prdt_id=c.prdt_id and c.up_prdt_type_id='PT040000'\ngroup by a.pty_id\nhaving sum(b.buy_amt)+sum(b.sell_amt)>100000\n)\nselect c.up_prdt_type_name,c.prdt_type_name,sum(mkt_val) as mkt_val\nfrom cust_tran a\ninner join dwd_cust_hold_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\ninner join dim_product c on b.prdt_id=c.prdt_id\ngroup by c.prdt_type_name,c.up_prdt_type_name;"
+  },
+  {
+    "id": 7,
+    "question": "查询26年1月10日到26年2月15日期间，科创板交易量大于25万的客户营业部分布情况",
+    "sql": "select c.up_org_name,c.org_name,sum(b.tran_amt) as tran_amt\nfrom ads_cust_info_d a\ninner join (\nselect a.pty_id,sum(buy_amt)+sum(sell_amt) as tran_amt\nfrom dwd_cust_tran_d a\ninner join dim_product b on a.prdt_id=b.prdt_id and b.prdt_type_name='科创板'\nwhere a.data_dt between '20260110' and '20260215'\ngroup by a.pty_id\nhaving sum(buy_amt)+sum(sell_amt)>250000\n) b on a.pty_id=b.pty_id\nleft join dim_branch c on a.org_id=c.org_id\ngroup by c.up_org_name,c.org_name;"
+  }
+]
+
