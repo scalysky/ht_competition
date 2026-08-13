@@ -19,3 +19,7 @@ workspace/standard/spider_eval/.deps/
 workspace/standard/spider_eval/.nltk_data/
 workspace/standard/spider_eval/__pycache__/
 workspace/standard/competition_eval/__pycache__/
+.venv/
+workspace/skills/at2s/skills/db-access/access.md
+workspace/skills/at2s/skills/kb-refine/config.md
+
