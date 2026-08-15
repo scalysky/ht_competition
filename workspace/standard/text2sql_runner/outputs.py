@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 import hashlib
 import json
 import os
@@ -134,6 +135,24 @@ def _atomic_write_text(path: Path, content: str) -> None:
 
 def _json_text(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, indent=2) + "\n"
+
+
+def write_run_metadata(
+    output_dir: Path,
+    *,
+    knowledge_mode: str,
+    knowledge_files: tuple[str, ...],
+    model: str,
+) -> Path:
+    path = output_dir / "run_metadata.json"
+    metadata = {
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "knowledge_mode": knowledge_mode,
+        "knowledge_files": list(knowledge_files),
+        "model": model,
+    }
+    _atomic_write_text(path, _json_text(metadata))
+    return path
 
 
 def write_prediction_files(

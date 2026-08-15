@@ -7,6 +7,7 @@ import unittest
 
 from workspace.standard.text2sql_runner.competition_data import CompetitionQuestion
 from workspace.standard.text2sql_runner.generate import (
+    parse_args,
     run_generation,
     select_questions,
 )
@@ -134,6 +135,24 @@ class GenerationTests(unittest.TestCase):
             with self.subTest(limit=limit, full=full):
                 with self.assertRaises(ValueError):
                     select_questions(self.questions, limit=limit, full=full)
+
+    def test_cli_defaults_to_full_knowledge_and_accepts_none(self) -> None:
+        default_args = parse_args(
+            ["--limit", "1", "--output-dir", str(self.output_dir)]
+        )
+        none_args = parse_args(
+            [
+                "--limit",
+                "1",
+                "--output-dir",
+                str(self.output_dir),
+                "--knowledge-mode",
+                "None",
+            ]
+        )
+
+        self.assertEqual(default_args.knowledge_mode, "Full")
+        self.assertEqual(none_args.knowledge_mode, "None")
 
 
 if __name__ == "__main__":

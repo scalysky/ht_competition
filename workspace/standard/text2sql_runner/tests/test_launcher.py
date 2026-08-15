@@ -46,6 +46,7 @@ class PowerShellLauncherTests(unittest.TestCase):
         self.assertIn("-Limit", completed.stdout)
         self.assertIn("-Full", completed.stdout)
         self.assertIn("-GenerateOnly", completed.stdout)
+        self.assertIn("-KnowledgeMode", completed.stdout)
 
     def test_limit_and_full_are_mutually_exclusive(self) -> None:
         completed = self.run_launcher("-Limit", "1", "-Full")
@@ -82,6 +83,28 @@ class PowerShellLauncherTests(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 2, completed.stdout)
             self.assertIn("Run output:", completed.stdout)
+
+    def test_none_knowledge_mode_is_forwarded_to_generator(self) -> None:
+        with tempfile.TemporaryDirectory() as output_root:
+            with tempfile.TemporaryDirectory() as command_dir:
+                fake_python = Path(command_dir) / "python.cmd"
+                fake_python.write_text("@echo off\necho %*\nexit /b 0\n", encoding="ascii")
+                environment = os.environ.copy()
+                environment["PATH"] = command_dir + os.pathsep + environment["PATH"]
+
+                completed = self.run_launcher(
+                    "-Limit",
+                    "1",
+                    "-GenerateOnly",
+                    "-KnowledgeMode",
+                    "None",
+                    "-OutputRoot",
+                    output_root,
+                    environment=environment,
+                )
+
+        self.assertEqual(completed.returncode, 0, completed.stdout)
+        self.assertIn("--knowledge-mode None", completed.stdout)
 
 
 if __name__ == "__main__":

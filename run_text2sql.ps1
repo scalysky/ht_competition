@@ -14,6 +14,9 @@ param(
     [switch]$EvaluateOnly,
     [switch]$NoResume,
 
+    [ValidateSet('Full', 'None')]
+    [string]$KnowledgeMode = 'Full',
+
     [ValidatePattern('^[A-Za-z0-9._-]+$')]
     [string]$RunName = 'latest',
 
@@ -40,6 +43,7 @@ Modes:
   -GenerateOnly   Generate SQL without evaluation
   -EvaluateOnly   Evaluate an existing RunName
   -NoResume       Do not reuse checkpoints; create a timestamped run by default
+  -KnowledgeMode  Full (default) loads all knowledge Markdown; None loads none
 
 Other:
   -RunName NAME   Run directory name; default: latest
@@ -81,7 +85,9 @@ try {
             '-m',
             'workspace.standard.text2sql_runner.generate',
             '--output-dir',
-            $runDirectory
+            $runDirectory,
+            '--knowledge-mode',
+            $KnowledgeMode
         )
         if ($PSCmdlet.ParameterSetName -eq 'Full') {
             $generationArgs += '--full'

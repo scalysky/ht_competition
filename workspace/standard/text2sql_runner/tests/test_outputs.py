@@ -11,6 +11,7 @@ from workspace.standard.text2sql_runner.outputs import (
     append_checkpoint,
     input_fingerprint,
     load_successful_checkpoints,
+    write_run_metadata,
     write_prediction_files,
 )
 
@@ -106,6 +107,27 @@ class OutputTests(unittest.TestCase):
         self.assertEqual(len(first), 64)
         self.assertNotEqual(first, second)
         self.assertNotEqual(first, changed_question)
+
+    def test_run_metadata_records_mode_files_and_model_without_secrets(self) -> None:
+        path = write_run_metadata(
+            self.root,
+            knowledge_mode="Full",
+            knowledge_files=("architecture/a.md", "architecture/b.md"),
+            model="deepseek-v4-flash",
+        )
+
+        metadata = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            set(metadata),
+            {"generated_at", "knowledge_mode", "knowledge_files", "model"},
+        )
+        self.assertEqual(metadata["knowledge_mode"], "Full")
+        self.assertEqual(
+            metadata["knowledge_files"],
+            ["architecture/a.md", "architecture/b.md"],
+        )
+        self.assertEqual(metadata["model"], "deepseek-v4-flash")
+        self.assertRegex(metadata["generated_at"], r"^\d{4}-\d{2}-\d{2}T")
 
 
 if __name__ == "__main__":

@@ -24,6 +24,11 @@ from workspace.standard.text2sql_runner.llm_client import (  # noqa: E402
     LlmConfig,
     OpenAICompatibleClient,
 )
+from workspace.standard.text2sql_runner.knowledge import (  # noqa: E402
+    KNOWLEDGE_MODES,
+    combine_schema_and_knowledge,
+    load_knowledge_context,
+)
 from workspace.standard.text2sql_runner.outputs import (  # noqa: E402
     OutputPaths,
     PredictionRecord,
@@ -31,6 +36,7 @@ from workspace.standard.text2sql_runner.outputs import (  # noqa: E402
     input_fingerprint,
     load_successful_checkpoints,
     write_prediction_files,
+    write_run_metadata,
 )
 from workspace.standard.text2sql_runner.prompts import (  # noqa: E402
     build_messages,
@@ -39,14 +45,12 @@ from workspace.standard.text2sql_runner.prompts import (  # noqa: E402
 
 
 DEFAULT_GOLD = COMPETITION_EVAL_DIR / "gold_queries.json"
-DEFAULT_KNOWLEDGE = (
+DEFAULT_KNOWLEDGE_ROOT = (
     REPO_ROOT
     / "workspace"
     / "skills"
     / "at2s"
     / ".knowledge"
-    / "architecture"
-    / "correlation.md"
 )
 
 
@@ -157,7 +161,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     scope.add_argument("--full", action="store_true")
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--gold", type=Path, default=DEFAULT_GOLD)
-    parser.add_argument("--knowledge", type=Path, default=DEFAULT_KNOWLEDGE)
+    parser.add_argument(
+        "--knowledge-mode",
+        choices=KNOWLEDGE_MODES,
+        default="Full",
+    )
+    parser.add_argument(
+        "--knowledge-root",
+        type=Path,
+        default=DEFAULT_KNOWLEDGE_ROOT,
+    )
     parser.add_argument("--no-resume", action="store_true")
     parser.add_argument("--psql-path")
     return parser.parse_args(argv)
@@ -179,16 +192,22 @@ def main(argv: list[str] | None = None) -> int:
     if identity["read_only"] != "on":
         raise RuntimeError("数据库连接不是只读模式，已终止生成")
     schema = format_schema(runner.public_schema_metadata())
-    knowledge_path = args.knowledge.resolve()
-    if not knowledge_path.is_file():
-        raise RuntimeError(f"业务关系知识文件不存在: {knowledge_path}")
-    knowledge = knowledge_path.read_text(encoding="utf-8").strip()
-    if not knowledge:
-        raise RuntimeError(f"业务关系知识文件为空: {knowledge_path}")
-    prompt_context = (
-        schema
-        + "\n\n业务规则与推断关联（数据库未声明外键，以此处规则为准）：\n"
-        + knowledge
+    knowledge_context = load_knowledge_context(
+        args.knowledge_mode,
+        args.knowledge_root.resolve(),
+    )
+    if knowledge_context.mode == "Full":
+        print(f"知识库模式: Full（已加载 {len(knowledge_context.files)} 个文件）")
+        for relative_path in knowledge_context.files:
+            print(f"  - {relative_path}")
+    else:
+        print("知识库模式: None（未使用知识库）")
+    prompt_context = combine_schema_and_knowledge(schema, knowledge_context)
+    write_run_metadata(
+        args.output_dir.resolve(),
+        knowledge_mode=knowledge_context.mode,
+        knowledge_files=knowledge_context.files,
+        model=llm_config.model,
     )
 
     summary = run_generation(
