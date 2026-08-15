@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import tempfile
 import unittest
+from unittest.mock import patch
 
 from workspace.standard.text2sql_runner.knowledge import (
     combine_schema_and_knowledge,
@@ -73,6 +74,28 @@ class KnowledgeContextTests(unittest.TestCase):
     def test_rejects_unknown_mode(self) -> None:
         with self.assertRaisesRegex(ValueError, "知识库模式"):
             load_knowledge_context("Partial", self.root)
+
+    def test_full_rejects_markdown_symlink_outside_knowledge_root(self) -> None:
+        self.root.mkdir(parents=True)
+        outside = self.root.parent / "secret.md"
+        outside.write_text("LLM_API_KEY=secret", encoding="utf-8")
+        link = self.root / "linked-secret.md"
+        try:
+            link.symlink_to(outside)
+        except OSError as exc:
+            self.skipTest(f"当前系统不允许创建符号链接: {exc}")
+
+        with self.assertRaisesRegex(RuntimeError, "符号链接"):
+            load_knowledge_context("Full", self.root)
+
+    def test_full_rejects_candidate_resolving_outside_knowledge_root(self) -> None:
+        self.root.mkdir(parents=True)
+        outside = self.root.parent / "outside.md"
+        outside.write_text("不得加载", encoding="utf-8")
+
+        with patch.object(Path, "rglob", return_value=[outside]):
+            with self.assertRaisesRegex(RuntimeError, "知识库目录之外"):
+                load_knowledge_context("Full", self.root)
 
 
 if __name__ == "__main__":

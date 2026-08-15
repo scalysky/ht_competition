@@ -50,6 +50,25 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_text2sql.ps1 -Help
 
 如果已经在 PowerShell 中，并且本机允许执行脚本，也可以使用 `./run_text2sql.ps1`。CMD 不支持 PowerShell 的反引号换行符，请优先复制本文的一行命令。
 
+PowerShell 用户可以只对当前窗口临时放开脚本限制，然后直接使用脚本入口：
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+
+# 单题：默认完整知识库
+.\run_text2sql.ps1 -Limit 1 -RunName smoke_full_kb
+
+# 全量：默认完整知识库；重复执行同一命令即可断点续跑
+.\run_text2sql.ps1 -Full -RunName baseline_full_kb
+
+# 全量：完全不读取知识库
+.\run_text2sql.ps1 -Full -RunName baseline_no_kb -KnowledgeMode None
+
+# 只生成 / 只评测
+.\run_text2sql.ps1 -Full -RunName baseline_no_kb -KnowledgeMode None -GenerateOnly
+.\run_text2sql.ps1 -Full -RunName baseline_no_kb -EvaluateOnly
+```
+
 ## 3. 选择知识库模式
 
 ### 完整知识库（默认）

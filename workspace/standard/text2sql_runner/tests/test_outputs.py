@@ -108,6 +108,22 @@ class OutputTests(unittest.TestCase):
         self.assertNotEqual(first, second)
         self.assertNotEqual(first, changed_question)
 
+    def test_fingerprint_separates_full_and_none_knowledge_contexts(self) -> None:
+        question = CompetitionQuestion(1, "客户数量")
+        none_context = "TABLE customer(id)"
+        full_context = none_context + "\n\n知识：客户主键是 id"
+        none_messages = [{"role": "user", "content": none_context}]
+        full_messages = [{"role": "user", "content": full_context}]
+
+        none_fingerprint = input_fingerprint(
+            question, none_context, "model-a", none_messages
+        )
+        full_fingerprint = input_fingerprint(
+            question, full_context, "model-a", full_messages
+        )
+
+        self.assertNotEqual(none_fingerprint, full_fingerprint)
+
     def test_run_metadata_records_mode_files_and_model_without_secrets(self) -> None:
         path = write_run_metadata(
             self.root,
