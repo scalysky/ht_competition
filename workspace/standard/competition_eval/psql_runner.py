@@ -182,6 +182,120 @@ class PsqlRunner:
             )
         return permissions
 
+    @staticmethod
+    def _parse_catalog_rows(output: str, label: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for line in output.splitlines() if output else []:
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError as exc:
+                raise PsqlExecutionError(f"无法解析{label}: {line[:500]}") from exc
+            if not isinstance(row, dict):
+                raise PsqlExecutionError(f"{label}不是 JSON 对象: {line[:500]}")
+            rows.append(row)
+        return rows
+
+    def public_schema_metadata(self) -> dict[str, Any]:
+        column_rows = self._parse_catalog_rows(
+            self._run(
+                "SELECT json_build_object("
+                "'table', table_name, 'column', column_name, "
+                "'type', data_type, 'nullable', is_nullable = 'YES', "
+                "'ordinal_position', ordinal_position) "
+                "FROM information_schema.columns "
+                "WHERE table_schema = 'public' "
+                "ORDER BY table_name, ordinal_position"
+            ),
+            "字段元数据",
+        )
+        primary_key_rows = self._parse_catalog_rows(
+            self._run(
+                "SELECT json_build_object("
+                "'table', kcu.table_name, 'column', kcu.column_name, "
+                "'ordinal_position', kcu.ordinal_position) "
+                "FROM information_schema.table_constraints tc "
+                "JOIN information_schema.key_column_usage kcu "
+                "ON tc.constraint_catalog = kcu.constraint_catalog "
+                "AND tc.constraint_schema = kcu.constraint_schema "
+                "AND tc.constraint_name = kcu.constraint_name "
+                "WHERE tc.table_schema = 'public' "
+                "AND tc.constraint_type = 'PRIMARY KEY' "
+                "ORDER BY kcu.table_name, kcu.ordinal_position"
+            ),
+            "主键元数据",
+        )
+        foreign_key_rows = self._parse_catalog_rows(
+            self._run(
+                "SELECT json_build_object("
+                "'table', kcu.table_name, 'column', kcu.column_name, "
+                "'references_table', ccu.table_name, "
+                "'references_column', ccu.column_name) "
+                "FROM information_schema.table_constraints tc "
+                "JOIN information_schema.key_column_usage kcu "
+                "ON tc.constraint_catalog = kcu.constraint_catalog "
+                "AND tc.constraint_schema = kcu.constraint_schema "
+                "AND tc.constraint_name = kcu.constraint_name "
+                "JOIN information_schema.constraint_column_usage ccu "
+                "ON tc.constraint_catalog = ccu.constraint_catalog "
+                "AND tc.constraint_schema = ccu.constraint_schema "
+                "AND tc.constraint_name = ccu.constraint_name "
+                "WHERE tc.table_schema = 'public' "
+                "AND tc.constraint_type = 'FOREIGN KEY' "
+                "ORDER BY kcu.table_name, kcu.ordinal_position"
+            ),
+            "外键元数据",
+        )
+
+        tables_by_name: dict[str, dict[str, Any]] = {}
+        for row in column_rows:
+            table_name = str(row["table"])
+            table = tables_by_name.setdefault(
+                table_name,
+                {"name": table_name, "columns": [], "primary_key": []},
+            )
+            table["columns"].append(
+                {
+                    "name": str(row["column"]),
+                    "type": str(row["type"]),
+                    "nullable": bool(row["nullable"]),
+                    "ordinal_position": int(row["ordinal_position"]),
+                }
+            )
+
+        for row in primary_key_rows:
+            table = tables_by_name.get(str(row["table"]))
+            if table is not None:
+                table["primary_key"].append(
+                    (int(row["ordinal_position"]), str(row["column"]))
+                )
+        for table in tables_by_name.values():
+            table["columns"].sort(key=lambda item: item["ordinal_position"])
+            table["primary_key"] = [
+                column for _, column in sorted(table["primary_key"])
+            ]
+
+        foreign_keys = [
+            {
+                "table": str(row["table"]),
+                "column": str(row["column"]),
+                "references_table": str(row["references_table"]),
+                "references_column": str(row["references_column"]),
+            }
+            for row in foreign_key_rows
+        ]
+        foreign_keys.sort(
+            key=lambda item: (
+                item["table"],
+                item["column"],
+                item["references_table"],
+                item["references_column"],
+            )
+        )
+        return {
+            "tables": [tables_by_name[name] for name in sorted(tables_by_name)],
+            "foreign_keys": foreign_keys,
+        }
+
     def execute_rows(self, sql: str) -> QueryRows:
         validate_read_only_sql(sql)
         inner_sql = strip_terminal_semicolon(sql)
