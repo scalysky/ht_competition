@@ -1,0 +1,864 @@
+序号,问题,SQL
+1,学历本科及以上的男性客户，年龄大于50岁的有多少个,"select count(*)
+from ads_cust_info_d a
+left join dim_public b on a.edu_cd = b.code and b.code_type_id='600' 
+left join dim_public c on a.gender_cd = c.code and c.code_type_id='500'
+where b.describe  in ('博士','硕士','学士') and c.describe in ('男')
+and a.cust_age>50 "
+2,"不同客户年龄段资产分布情况，如下规则：
+1、小于30
+2、大于等于30，小于50
+3、大于等于50，小于60
+4、大于60","select case when cust_age<30 then '<30'
+     when cust_age>=30 and cust_age<50 then '[30,50)'
+     when cust_age>=50 and cust_age<60 then '[50,60)'
+     when cust_age>=60 then '[60,)'
+    end as cust_age_type
+  ,sum(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)) as aset 
+from ads_cust_info_d a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+where a.data_dt='20260531'
+group by case when cust_age<30 then '<30'
+     when cust_age>=30 and cust_age<50 then '[30,50)'
+     when cust_age>=50 and cust_age<60 then '[50,60)'
+     when cust_age>=60 then '[60,)'
+    end;"
+3,钻石卡男性客户，年龄大于40岁，持有比亚迪市值超过1000元，他在26年Q1的盈亏情况,"with custinfo as
+(select pty_id
+from ads_cust_info_d a 
+left join dim_public b on a.cust_lvl_cd=b.code and b.code_type_id='100'
+left join dim_public c on a.gender_cd=c.code and c.code_type_id='500'
+where b.describe='紫金理财钻石卡客户' and c.describe in ('男')
+and a.cust_age>40
+),
+prdtinfo as
+(select a.pty_id,sum(a.mkt_val) as mkt_val
+from dwd_cust_hold_d a
+inner join dim_product b on a.prdt_id=b.prdt_id
+where b.prdt_name='比亚迪' and a.data_dt='20260331'
+and exists(select 1 from custinfo z where a.pty_id=z.pty_id)
+group by a.pty_id
+having sum(a.mkt_val)>1000
+)
+select a.pty_id
+     ,coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset
+     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset
+     ,coalesce(d.aset_in,0) as aset_in
+     ,coalesce(d.aset_out,0) as aset_out
+     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)-coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)+coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft
+from prdtinfo a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'  --准确的话应该是20251231，暂时以20260101代替
+left join 
+(
+select pty_id
+      ,sum(cash_in)+sum(tran_in)+sum(assign_in) as aset_in
+      ,sum(cash_out)+sum(tran_out)+sum(assign_out) as aset_out
+from dws_cust_fin_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+) d on a.pty_id=d.pty_id;"
+4,分公司各营业部的客户省份分析统计,"select b.up_org_name,b.org_name,a.prov_name,a.city_name,count(*) as cnt
+from ads_cust_info_d a
+inner join dim_branch b on a.org_id=b.org_id
+group by b.up_org_name,b.org_name,a.prov_name,a.city_name"
+5,"26年Q1交易过招商银行，且26年Q1末普通账户持有中国平安的客户
+","
+with cust_tran as
+(
+select pty_id,prdt_id,sum(buy_amt) as buy_tot,sum(sell_amt) as sell_tot 
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331' 
+and prdt_id in (
+select prdt_id from dim_product
+where prdt_name='招商银行' and prdt_type_name='A股'
+)
+group by pty_id,prdt_id
+)
+select a.pty_id
+from cust_tran a
+inner join 
+(
+select a.*
+from dwd_cust_hold_d a
+where prdt_id in (select prdt_id from dim_product where prdt_name='中国平安' and prdt_type_name='A股')
+and a.data_dt='20260331' and a.sys_source='nm'
+) b on a.pty_id=b.pty_id
+"
+6,"26年Q1日均资产大于30万的客户，股票交易量大于10万的，其持有的产品属于哪些产品大类
+","with cust_avg_30 as 
+(
+select pty_id,round(sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1),2) as avg_aset
+from dws_cust_aset_d
+group by pty_id
+having sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1)>300000
+), cust_tran as
+(
+select a.pty_id,sum(b.buy_amt)+sum(b.sell_amt) as tran_amt
+from dws_cust_aset_d a
+left join dwd_cust_tran_d b on a.pty_id=b.pty_id and b.data_dt between '20260101' and '20260331'
+inner join dim_product c on b.prdt_id=c.prdt_id and c.up_prdt_type_id='PT040000'
+group by a.pty_id
+having sum(b.buy_amt)+sum(b.sell_amt)>100000
+)
+select c.up_prdt_type_name,c.prdt_type_name,sum(mkt_val) as mkt_val
+from cust_tran a
+inner join dwd_cust_hold_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+inner join dim_product c on b.prdt_id=c.prdt_id
+group by c.prdt_type_name,c.up_prdt_type_name
+;"
+7,查询26年1月10日到26年2月15日期间，科创板交易量大于25万的客户营业部分布情况,"
+select c.up_org_name,c.org_name,sum(b.tran_amt) as tran_amt
+from ads_cust_info_d a
+inner join 
+(
+select a.pty_id,sum(buy_amt)+sum(sell_amt) as tran_amt
+from dwd_cust_tran_d a
+inner join dim_product b on a.prdt_id=b.prdt_id and b.prdt_type_name='科创板'
+where a.data_dt between '20260110' and '20260215'
+group by a.pty_id
+having sum(buy_amt)+sum(sell_amt)>250000
+) b on a.pty_id=b.pty_id
+left join dim_branch c on a.org_id=c.org_id
+group by c.up_org_name,c.org_name;"
+8,数据库中共有多少个客户,"select count(*) as cust_cnt
+from ads_cust_info_d
+where data_dt='20260531';"
+9,男性客户有多少个,"select count(*) as cust_cnt
+from ads_cust_info_d a
+left join dim_public b on a.gender_cd=b.code and b.code_type_id='500'
+where a.data_dt='20260531' and b.describe='男';"
+10,女性客户有多少个,"select count(*) as cust_cnt
+from ads_cust_info_d a
+left join dim_public b on a.gender_cd=b.code and b.code_type_id='500'
+where a.data_dt='20260531' and b.describe='女';"
+11,各性别客户数量分布情况,"select b.describe as gender, count(*) as cnt
+from ads_cust_info_d a
+left join dim_public b on a.gender_cd=b.code and b.code_type_id='500'
+where a.data_dt='20260531'
+group by b.describe
+order by cnt desc;"
+12,各客户等级的客户数量分布,"select b.describe as cust_lvl, count(*) as cnt
+from ads_cust_info_d a
+left join dim_public b on a.cust_lvl_cd=b.code and b.code_type_id='100'
+where a.data_dt='20260531'
+group by b.describe
+order by cnt desc;"
+13,各学历层次的客户数量分布,"select b.describe as edu, count(*) as cnt
+from ads_cust_info_d a
+left join dim_public b on a.edu_cd=b.code and b.code_type_id='600'
+where a.data_dt='20260531'
+group by b.describe
+order by cnt desc;"
+14,各省份的客户数量分布,"select prov_name, count(*) as cnt
+from ads_cust_info_d
+where data_dt='20260531'
+group by prov_name
+order by cnt desc, prov_name;"
+15,全体客户的平均年龄是多少,"select round(avg(cust_age),1) as avg_age
+from ads_cust_info_d
+where data_dt='20260531';"
+16,各省份的客户数量及平均年龄,"select prov_name, count(*) as cnt, round(avg(cust_age),1) as avg_age
+from ads_cust_info_d
+where data_dt='20260531'
+group by prov_name
+order by cnt desc, prov_name;"
+17,年龄最大的3位客户的姓名、年龄、省份,"select name, cust_age, prov_name
+from ads_cust_info_d
+where data_dt='20260531'
+order by cust_age desc, name
+limit 3;"
+18,数据库中共有多少家营业部,"select count(distinct org_id) as org_cnt
+from dim_branch;"
+19,数据库中共有多少家分公司（上级机构）,"select count(distinct up_org_id) as branch_cnt
+from dim_branch;"
+20,各分公司下属营业部数量分布,"select up_org_name, count(distinct org_id) as org_cnt
+from dim_branch
+group by up_org_name
+order by org_cnt desc, up_org_name;"
+21,各账户状态（正常、休眠等）的客户数量分布,"select b.describe as cust_status, count(*) as cnt
+from ads_cust_info_d a
+left join dim_public b on a.cust_status=b.code and b.code_type_id='200'
+where a.data_dt='20260531'
+group by b.describe
+order by cnt desc;"
+22,产品表中共有多少个产品,"select count(*) as prdt_cnt
+from dim_product;"
+23,各产品一级分类的产品数量分布,"select up_prdt_type_name, count(*) as prdt_cnt
+from dim_product
+group by up_prdt_type_name
+order by prdt_cnt desc;"
+24,A股产品有多少个,"select count(*) as prdt_cnt
+from dim_product
+where prdt_type_name='A股';"
+25,ETF产品有多少个,"select count(*) as prdt_cnt
+from dim_product
+where prdt_type_name='ETF';"
+26,持仓数据中最新日期是哪一天,"select max(data_dt) as latest_dt
+from dwd_cust_hold_d;"
+27,20260331有多少客户有持仓记录,"select count(distinct pty_id) as cust_cnt
+from dwd_cust_hold_d
+where data_dt='20260331';"
+28,20260331全体客户持仓总市值是多少,"select sum(mkt_val) as tot_mkt_val
+from dwd_cust_hold_d
+where data_dt='20260331';"
+29,持仓表各币种（0人民币、1美元、2港币）的记录数分布,"select ccy, count(*) as cnt
+from dwd_cust_hold_d
+group by ccy
+order by ccy;"
+30,26年Q1有多少客户发生过交易,"select count(distinct pty_id) as cust_cnt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331';"
+31,26年Q1全体客户买入总金额是多少,"select sum(buy_amt) as tot_buy_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331';"
+32,26年Q1全体客户卖出总金额是多少,"select sum(sell_amt) as tot_sell_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331';"
+33,20260331全体客户普通账户总资产合计,"select sum(nm_tot_aset) as tot_aset
+from dws_cust_aset_d
+where data_dt='20260331';"
+34,20260331普通账户平均总资产是多少,"select round(avg(nm_tot_aset),2) as avg_aset
+from dws_cust_aset_d
+where data_dt='20260331';"
+35,26年Q1全体客户现金转入总额是多少,"select sum(cash_in) as tot_cash_in
+from dws_cust_fin_d
+where data_dt between '20260101' and '20260331';"
+36,标准字典表中共有多少种字典类型,"select count(distinct code_type_id) as type_cnt
+from dim_public;"
+37,各职业类型的客户数量TOP10,"select b.describe as profession, count(*) as cnt
+from ads_cust_info_d a
+left join dim_public b on a.prof_cd=b.code and b.code_type_id='700'
+where a.data_dt='20260531'
+group by b.describe
+order by cnt desc
+limit 10;"
+38,钻石卡客户的姓名、年龄及所属营业部,"select a.name, a.cust_age, b.org_name
+from ads_cust_info_d a
+left join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'
+left join dim_branch b on a.org_id=b.org_id
+where a.data_dt='20260531' and c.describe='紫金理财钻石卡客户'
+order by a.cust_age desc, a.pty_id;"
+39,20260331各客户等级的平均总资产（普通账户总资产+信用账户净资产）,"select c.describe as cust_lvl,
+       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset
+from ads_cust_info_d a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'
+where a.data_dt='20260531'
+group by c.describe
+order by avg_aset desc nulls last;"
+40,男性与女性客户20260331的平均总资产对比,"select c.describe as gender,
+       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset
+from ads_cust_info_d a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dim_public c on a.gender_cd=c.code and c.code_type_id='500'
+where a.data_dt='20260531'
+group by c.describe
+order by gender;"
+41,20260331各学历层次的客户平均总资产,"select c.describe as edu,
+       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset
+from ads_cust_info_d a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dim_public c on a.edu_cd=c.code and c.code_type_id='600'
+where a.data_dt='20260531'
+group by c.describe
+order by avg_aset desc nulls last;"
+42,20260331持有比亚迪A股的客户名单,"select distinct a.pty_id
+from dwd_cust_hold_d a
+inner join dim_product b on a.prdt_id=b.prdt_id
+where b.prdt_name='比亚迪' and b.prdt_type_name='A股'
+  and a.data_dt='20260331'
+order by pty_id;"
+43,20260331各产品一级分类的持仓总市值及持仓客户数,"select c.up_prdt_type_name,
+       sum(a.mkt_val) as mkt_val,
+       count(distinct a.pty_id) as cust_cnt
+from dwd_cust_hold_d a
+inner join dim_product c on a.prdt_id=c.prdt_id
+where a.data_dt='20260331'
+group by c.up_prdt_type_name
+order by mkt_val desc nulls last;"
+44,江苏省客户在各营业部的数量分布,"select b.org_name, count(*) as cnt
+from ads_cust_info_d a
+inner join dim_branch b on a.org_id=b.org_id
+where a.data_dt='20260531' and a.prov_name='江苏省'
+group by b.org_name
+order by cnt desc, b.org_name;"
+45,各分公司的客户数量及客户平均年龄,"select b.up_org_name, count(*) as cust_cnt, round(avg(a.cust_age),1) as avg_age
+from ads_cust_info_d a
+inner join dim_branch b on a.org_id=b.org_id
+where a.data_dt='20260531'
+group by b.up_org_name
+order by cust_cnt desc, b.up_org_name;"
+46,离退休人员（公职、非公职）的客户数量,"select c.describe as profession, count(*) as cnt
+from ads_cust_info_d a
+left join dim_public c on a.prof_cd=c.code and c.code_type_id='700'
+where a.data_dt='20260531'
+  and c.describe in ('公职 离/退休','非公职 离/退休')
+group by c.describe
+order by profession;"
+47,30岁以下客户20260331的平均总资产,"select round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset
+from ads_cust_info_d a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+where a.data_dt='20260531' and a.cust_age<30;"
+48,26年Q1各月买入金额与卖出金额,"select substring(data_dt,1,6) as mon,
+       sum(buy_amt) as buy_amt,
+       sum(sell_amt) as sell_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by substring(data_dt,1,6)
+order by mon;"
+49,26年Q1有交易的客户按客户等级分布,"select c.describe as cust_lvl, count(distinct a.pty_id) as cust_cnt
+from dwd_cust_tran_d a
+inner join ads_cust_info_d b on a.pty_id=b.pty_id and b.data_dt='20260531'
+left join dim_public c on b.cust_lvl_cd=c.code and c.code_type_id='100'
+where a.data_dt between '20260101' and '20260331'
+group by c.describe
+order by cust_cnt desc;"
+50,20260331信用账户(sys_source=fc)的持仓总市值及持仓客户数,"select sum(mkt_val) as fc_mkt_val,
+       count(distinct pty_id) as cust_cnt
+from dwd_cust_hold_d
+where data_dt='20260331' and sys_source='fc';"
+51,20260331持有港币(ccy=2)资产的客户及其港币持仓市值,"select pty_id, sum(mkt_val) as hkd_mkt_val
+from dwd_cust_hold_d
+where data_dt='20260331' and ccy='2'
+group by pty_id
+order by hkd_mkt_val desc nulls last;"
+52,20260331科创板产品的持仓客户数及持仓市值,"select count(distinct a.pty_id) as cust_cnt,
+       sum(a.mkt_val) as mkt_val
+from dwd_cust_hold_d a
+inner join dim_product b on a.prdt_id=b.prdt_id
+where a.data_dt='20260331' and b.prdt_type_name='科创板';"
+53,20260331持有ETF产品的客户数量,"select count(distinct a.pty_id) as cust_cnt
+from dwd_cust_hold_d a
+inner join dim_product b on a.prdt_id=b.prdt_id
+where a.data_dt='20260331' and b.prdt_type_name='ETF';"
+54,硕士及以上学历客户的数量及占全部客户的比例,"select count(*) as cnt,
+       round(count(*)*100.0/(select count(*) from ads_cust_info_d where data_dt='20260531'),2) as pct
+from ads_cust_info_d a
+left join dim_public b on a.edu_cd=b.code and b.code_type_id='600'
+where a.data_dt='20260531' and b.describe in ('硕士','博士');"
+55,各城市的客户数量及平均年龄,"select prov_name, city_name, count(*) as cnt, round(avg(cust_age),1) as avg_age
+from ads_cust_info_d
+where data_dt='20260531'
+group by prov_name, city_name
+order by cnt desc, prov_name, city_name;"
+56,20260331持有产品数量最多的前10客户,"select pty_id, count(distinct prdt_id) as prdt_cnt
+from dwd_cust_hold_d
+where data_dt='20260331'
+group by pty_id
+order by prdt_cnt desc
+, pty_id
+limit 10;"
+57,26年Q1普通账户(nm)与信用账户(fc)的交易金额分布,"select sys_source,
+       sum(buy_amt) as buy_amt,
+       sum(sell_amt) as sell_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by sys_source
+order by sys_source;"
+58,20260331总资产（普通账户总资产+信用账户净资产）大于100万的客户名单,"select a.pty_id,
+       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as tot_aset
+from ads_cust_info_d a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+where a.data_dt='20260531'
+  and coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)>1000000
+order by tot_aset desc;"
+59,26年Q1现金净流出（现金转出大于现金转入）的客户数量,"select count(*) as cust_cnt
+from
+(
+select pty_id, sum(cash_in) as cash_in, sum(cash_out) as cash_out
+from dws_cust_fin_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+having sum(cash_out)>sum(cash_in)
+) t;"
+60,20260331各营业部管理的客户总资产,"select c.org_name,
+       sum(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)) as tot_aset
+from ads_cust_info_d a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dim_branch c on a.org_id=c.org_id
+where a.data_dt='20260531'
+group by c.org_name
+order by tot_aset desc nulls last;"
+61,20260331持有招商银行A股市值前10的客户,"select a.pty_id, sum(a.mkt_val) as mkt_val
+from dwd_cust_hold_d a
+inner join dim_product b on a.prdt_id=b.prdt_id
+where a.data_dt='20260331' and b.prdt_name='招商银行' and b.prdt_type_name='A股'
+group by a.pty_id
+order by mkt_val desc
+limit 10;"
+62,"客户年龄段分布（小于30、[30,50)、[50,60)、60以上）","select case when cust_age<30 then '<30'
+            when cust_age>=30 and cust_age<50 then '[30,50)'
+            when cust_age>=50 and cust_age<60 then '[50,60)'
+            else '[60,)' end as age_grp,
+       count(*) as cnt
+from ads_cust_info_d
+where data_dt='20260531'
+group by 1
+order by 1;"
+63,26年Q1各产品一级分类的交易金额（买入+卖出）,"select c.up_prdt_type_name,
+       sum(b.buy_amt)+sum(b.sell_amt) as tran_amt
+from dwd_cust_tran_d b
+inner join dim_product c on b.prdt_id=c.prdt_id
+where b.data_dt between '20260101' and '20260331'
+group by c.up_prdt_type_name
+order by tran_amt desc nulls last;"
+64,26年Q1使用信用账户交易的客户平均年龄,"select round(avg(a.cust_age),1) as avg_age
+from ads_cust_info_d a
+where a.data_dt='20260531'
+  and exists(select 1 from dwd_cust_tran_d b
+             where b.pty_id=a.pty_id and b.sys_source='fc'
+               and b.data_dt between '20260101' and '20260331');"
+65,20260331女性客户平均持有的产品种类数,"select round(avg(t.prdt_cnt),1) as avg_prdt_cnt
+from ads_cust_info_d a
+inner join dim_public c on a.gender_cd=c.code and c.code_type_id='500'
+inner join
+(
+select pty_id, count(distinct prdt_id) as prdt_cnt
+from dwd_cust_hold_d
+where data_dt='20260331'
+group by pty_id
+) t on a.pty_id=t.pty_id
+where a.data_dt='20260531' and c.describe='女';"
+66,20260331总资产排名前10的客户及其总资产,"select pty_id,
+       coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset
+from dws_cust_aset_d
+where data_dt='20260331'
+order by tot_aset desc
+limit 10;"
+67,26年Q1各月有交易的客户数,"select substring(data_dt,1,6) as mon,
+       count(distinct pty_id) as cust_cnt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by substring(data_dt,1,6)
+order by mon;"
+68,计算26年Q1全体客户的盈亏情况（期末资产-期初资产+资产转出-资产转入）,"with fin as
+(
+select pty_id,
+       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0)) as aset_in,
+       sum(coalesce(cash_out,0))+sum(coalesce(tran_out,0))+sum(coalesce(assign_out,0)) as aset_out
+from dws_cust_fin_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+)
+select a.pty_id,
+       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset,
+       coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset,
+       coalesce(d.aset_in,0) as aset_in,
+       coalesce(d.aset_out,0) as aset_out,
+       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)
+       -coalesce(c.nm_tot_aset,0)-coalesce(c.fc_pur_aset,0)
+       +coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft
+from (select distinct pty_id from dws_cust_aset_d where data_dt='20260331') a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'
+left join fin d on a.pty_id=d.pty_id
+order by a.pty_id;"
+69,26年Q1各月全体客户总资产变化趋势,"select substring(data_dt,1,6) as mon,
+       sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0)) as tot_aset
+from dws_cust_aset_d
+group by substring(data_dt,1,6)
+order by mon;"
+70,找出26年Q1资产流失客户（20260331总资产比20260101减少10%以上）,"select a.pty_id,
+       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset,
+       coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset
+from (select distinct pty_id from dws_cust_aset_d where data_dt='20260101') a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'
+where coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>0
+  and coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)
+     <(coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0))*0.9
+order by a.pty_id;"
+71,识别26年Q1高频交易客户（按交易天数排名前10）,"select pty_id, count(distinct data_dt) as trade_days
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+order by trade_days desc
+, pty_id
+limit 10;"
+72,20260331客户总资产排名（使用窗口函数，含并列名次），取前20名,"select pty_id,
+       coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset,
+       rank() over(order by coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) desc) as rnk
+from dws_cust_aset_d
+where data_dt='20260331'
+order by rnk
+limit 20;"
+73,各客户等级26年Q1交易活跃度分析（交易客户数、人均交易金额、人均交易天数）,"with lvl as
+(
+select a.pty_id, c.describe as cust_lvl
+from ads_cust_info_d a
+left join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'
+where a.data_dt='20260531'
+),
+tran as
+(
+select pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt, count(distinct data_dt) as trade_days
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+)
+select l.cust_lvl,
+       count(t.pty_id) as trade_cust_cnt,
+       round(avg(t.tran_amt),2) as avg_tran_amt,
+       round(avg(t.trade_days),1) as avg_trade_days
+from lvl l
+left join tran t on l.pty_id=t.pty_id
+group by l.cust_lvl
+order by avg_tran_amt desc nulls last;"
+74,持仓集中度分析：20260331单一产品市值占客户总资产比例超过50%的持仓明细,"with tot as
+(
+select pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset
+from dws_cust_aset_d
+where data_dt='20260331'
+)
+select a.pty_id, d.prdt_name, a.mkt_val, b.tot_aset,
+       round(a.mkt_val*100.0/nullif(b.tot_aset,0),2) as pct
+from dwd_cust_hold_d a
+inner join tot b on a.pty_id=b.pty_id
+inner join dim_product d on a.prdt_id=d.prdt_id
+where a.data_dt='20260331'
+  and a.mkt_val*100.0/nullif(b.tot_aset,0)>50
+order by pct desc, a.pty_id, d.prdt_name, a.mkt_val desc;"
+75,26年Q1买入过且20260331仍持有的股票，按二级分类统计产品数与客户数,"with buy_q1 as
+(
+select distinct a.prdt_id, a.pty_id
+from dwd_cust_tran_d a
+inner join dim_product b on a.prdt_id=b.prdt_id and b.up_prdt_type_id='PT040000'
+where a.data_dt between '20260101' and '20260331' and a.buy_amt>0
+)
+select c.up_prdt_type_name, c.prdt_type_name,
+       count(distinct a.prdt_id) as prdt_cnt,
+       count(distinct a.pty_id) as cust_cnt
+from dwd_cust_hold_d a
+inner join buy_q1 b on a.prdt_id=b.prdt_id and a.pty_id=b.pty_id
+inner join dim_product c on a.prdt_id=c.prdt_id
+where a.data_dt='20260331'
+group by c.up_prdt_type_name, c.prdt_type_name
+order by cust_cnt desc;"
+76,26年Q1清仓客户识别（20260101有持仓但20260331无持仓的客户数量）,"with bgn_hold as
+(
+select distinct pty_id from dwd_cust_hold_d where data_dt='20260101'
+),
+end_hold as
+(
+select distinct pty_id from dwd_cust_hold_d where data_dt='20260331'
+)
+select count(*) as clear_cust_cnt
+from bgn_hold a
+where not exists(select 1 from end_hold b where a.pty_id=b.pty_id);"
+77,26年Q1资产净流入前10客户（现金、证券、指定转入转出轧差）,"select pty_id,
+       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0))
+      -sum(coalesce(cash_out,0))-sum(coalesce(tran_out,0))-sum(coalesce(assign_out,0)) as net_in
+from dws_cust_fin_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+order by net_in desc
+limit 10;"
+78,各分公司26年Q1客户数、交易总额及20260331期末资产,"with cust_tran as
+(
+select pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+)
+select b.up_org_name,
+       count(distinct a.pty_id) as cust_cnt,
+       sum(coalesce(t.tran_amt,0)) as tran_amt,
+       sum(coalesce(d.nm_tot_aset,0)+coalesce(d.fc_pur_aset,0)) as end_aset
+from ads_cust_info_d a
+inner join dim_branch b on a.org_id=b.org_id
+left join cust_tran t on a.pty_id=t.pty_id
+left join dws_cust_aset_d d on a.pty_id=d.pty_id and d.data_dt='20260331'
+where a.data_dt='20260531'
+group by b.up_org_name
+order by end_aset desc nulls last;"
+79,26年Q1佣金贡献前10客户（买入佣金+卖出佣金）,"select pty_id, sum(coalesce(buy_rake,0))+sum(coalesce(sell_rake,0)) as tot_rake
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+order by tot_rake desc
+limit 10;"
+80,潜力客户挖掘：20260331总资产超过50万但26年Q1交易金额不足1万的客户,"with aset as
+(
+select pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset
+from dws_cust_aset_d
+where data_dt='20260331'
+),
+tran as
+(
+select pty_id, sum(coalesce(buy_amt,0))+sum(coalesce(sell_amt,0)) as tran_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+)
+select a.pty_id, a.tot_aset, coalesce(t.tran_amt,0) as tran_amt
+from aset a
+left join tran t on a.pty_id=t.pty_id
+where a.tot_aset>500000 and coalesce(t.tran_amt,0)<10000
+order by a.tot_aset desc;"
+81,沉睡激活客户：26年1月无交易但2月或3月有交易的客户数量,"with tran_m as
+(
+select pty_id,
+       max(case when substring(data_dt,1,6)='202601' then 1 else 0 end) as m1,
+       max(case when substring(data_dt,1,6)='202602' then 1 else 0 end) as m2,
+       max(case when substring(data_dt,1,6)='202603' then 1 else 0 end) as m3
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+)
+select count(*) as active_cust_cnt
+from tran_m
+where m1=0 and (m2=1 or m3=1);"
+82,客户资产分层迁移分析：20260101与20260331资产分层对比矩阵（10万以下、10-50万、50万以上）,"with bgn as
+(
+select pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as aset
+from dws_cust_aset_d where data_dt='20260101'
+),
+endd as
+(
+select pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as aset
+from dws_cust_aset_d where data_dt='20260331'
+)
+select case when a.aset<100000 then '<10万'
+            when a.aset<500000 then '[10万,50万)'
+            else '50万以上' end as bgn_lvl,
+       case when b.aset<100000 then '<10万'
+            when b.aset<500000 then '[10万,50万)'
+            else '50万以上' end as end_lvl,
+       count(*) as cnt
+from bgn a
+inner join endd b on a.pty_id=b.pty_id
+group by 1,2
+order by 1,2;"
+83,不同年龄段客户的产品大类持仓偏好（20260331持仓市值分布）,"select case when a.cust_age<30 then '<30'
+            when a.cust_age>=30 and a.cust_age<50 then '[30,50)'
+            else '[50,)' end as age_grp,
+       c.up_prdt_type_name,
+       sum(b.mkt_val) as mkt_val
+from ads_cust_info_d a
+inner join dwd_cust_hold_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+inner join dim_product c on b.prdt_id=c.prdt_id
+where a.data_dt='20260531'
+group by 1,2
+order by 1, mkt_val desc nulls last;"
+84,26年Q1客户盈亏结果统计（盈利、亏损、持平的客户数量）,"with fin as
+(
+select pty_id,
+       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0)) as aset_in,
+       sum(coalesce(cash_out,0))+sum(coalesce(tran_out,0))+sum(coalesce(assign_out,0)) as aset_out
+from dws_cust_fin_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+),
+pft as
+(
+select a.pty_id,
+       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)
+       -coalesce(c.nm_tot_aset,0)-coalesce(c.fc_pur_aset,0)
+       +coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft
+from (select distinct pty_id from dws_cust_aset_d where data_dt='20260331') a
+left join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'
+left join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'
+left join fin d on a.pty_id=d.pty_id
+)
+select case when aset_pft>0 then '盈利'
+            when aset_pft<0 then '亏损'
+            else '持平' end as pft_type,
+       count(*) as cust_cnt
+from pft
+group by 1
+order by 1;"
+85,26年Q1发生大额现金转入（单日超50万）的客户及其Q1交易金额,"select a.pty_id,
+       sum(coalesce(b.buy_amt,0))+sum(coalesce(b.sell_amt,0)) as tran_amt
+from (select distinct pty_id
+      from dws_cust_fin_d
+      where data_dt between '20260101' and '20260331' and cash_in>500000) a
+left join dwd_cust_tran_d b on a.pty_id=b.pty_id and b.data_dt between '20260101' and '20260331'
+group by a.pty_id
+order by tran_amt desc;"
+86,26年Q1各月新增交易客户数（当月首次发生交易的客户）,"with first_tran as
+(
+select pty_id, min(data_dt) as first_dt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+)
+select substring(first_dt,1,6) as mon, count(*) as new_cust_cnt
+from first_tran
+group by 1
+order by 1;"
+87,各营业部高价值客户（20260331总资产大于100万）数量及占比,"select b.org_name,
+       count(*) as cust_cnt,
+       sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end) as hv_cnt,
+       round(sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end)*100.0/count(*),2) as hv_pct
+from ads_cust_info_d a
+left join dim_branch b on a.org_id=b.org_id
+left join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260331'
+where a.data_dt='20260531'
+group by b.org_name
+having sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end)>0
+order by hv_cnt desc, b.org_name;"
+88,20260331产品热度排名：按持仓总市值排名前20的产品及持有客户数,"select b.prdt_name, b.prdt_type_name,
+       count(distinct a.pty_id) as holder_cnt,
+       sum(a.mkt_val) as tot_val
+from dwd_cust_hold_d a
+inner join dim_product b on a.prdt_id=b.prdt_id
+where a.data_dt='20260331'
+group by b.prdt_name, b.prdt_type_name
+order by tot_val desc nulls last
+limit 20;"
+89,交易激进客户识别：26年Q1买入金额与20260331总资产比值前10的客户,"with tran as
+(
+select pty_id, sum(buy_amt) as buy_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+),
+aset as
+(
+select pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset
+from dws_cust_aset_d
+where data_dt='20260331'
+)
+select a.pty_id, t.buy_amt, a.tot_aset,
+       round(t.buy_amt/nullif(a.tot_aset,0),2) as turnover_ratio
+from tran t
+inner join aset a on t.pty_id=a.pty_id and a.tot_aset>0
+order by turnover_ratio desc
+limit 10;"
+90,26年Q1各月客户总资产环比变化率（使用窗口函数）,"with m_aset as
+(
+select substring(data_dt,1,6) as mon,
+       sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0)) as tot_aset
+from dws_cust_aset_d
+group by substring(data_dt,1,6)
+)
+select mon, round(tot_aset,2) as tot_aset,
+       round((tot_aset-lag(tot_aset) over(order by mon))*100.0
+             /nullif(lag(tot_aset) over(order by mon),0),2) as mom_pct
+from m_aset
+order by mon;"
+91,26年Q1信用账户交易客户的画像分析（客户等级、人数、平均年龄、平均总资产）,"with fc_cust as
+(
+select distinct pty_id
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331' and sys_source='fc'
+)
+select c.describe as cust_lvl,
+       count(*) as cust_cnt,
+       round(avg(a.cust_age),1) as avg_age,
+       round(avg(coalesce(d.nm_tot_aset,0)+coalesce(d.fc_pur_aset,0)),2) as avg_aset
+from fc_cust f
+inner join ads_cust_info_d a on f.pty_id=a.pty_id and a.data_dt='20260531'
+left join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'
+left join dws_cust_aset_d d on a.pty_id=d.pty_id and d.data_dt='20260331'
+group by c.describe
+order by cust_cnt desc;"
+92,20260331持有港币资产客户的客户等级及平均年龄分布,"with hkd_cust as
+(
+select distinct pty_id
+from dwd_cust_hold_d
+where data_dt='20260331' and ccy='2'
+)
+select c.describe as cust_lvl,
+       count(*) as cnt,
+       round(avg(a.cust_age),1) as avg_age
+from hkd_cust h
+inner join ads_cust_info_d a on h.pty_id=a.pty_id and a.data_dt='20260531'
+left join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'
+group by c.describe
+order by cnt desc, cust_lvl;"
+93,26年Q1客户持仓产品数量变化分布（增加、减少、不变）,"with bgn as
+(
+select pty_id, count(distinct prdt_id) as prdt_cnt
+from dwd_cust_hold_d where data_dt='20260101' group by pty_id
+),
+endd as
+(
+select pty_id, count(distinct prdt_id) as prdt_cnt
+from dwd_cust_hold_d where data_dt='20260331' group by pty_id
+)
+select case when e.prdt_cnt>b.prdt_cnt then '增加'
+            when e.prdt_cnt=b.prdt_cnt then '不变'
+            else '减少' end as chg_type,
+       count(*) as cnt
+from bgn b
+inner join endd e on b.pty_id=e.pty_id
+group by 1
+order by chg_type;"
+94,20260331持有科创板与未持有科创板客户的平均总资产对比,"with kcb as
+(
+select distinct a.pty_id
+from dwd_cust_hold_d a
+inner join dim_product b on a.prdt_id=b.prdt_id
+where a.data_dt='20260331' and b.prdt_type_name='科创板'
+)
+select case when k.pty_id is null then '未持有科创板' else '持有科创板' end as kcb_flag,
+       count(*) as cust_cnt,
+       round(avg(coalesce(t.nm_tot_aset,0)+coalesce(t.fc_pur_aset,0)),2) as avg_aset
+from dws_cust_aset_d t
+left join kcb k on t.pty_id=k.pty_id
+where t.data_dt='20260331'
+group by 1
+order by kcb_flag;"
+95,高净值客户（总资产大于100万）与普通客户的产品大类持仓偏好对比（20260331）,"with tot as
+(
+select pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset
+from dws_cust_aset_d where data_dt='20260331'
+)
+select case when t.tot_aset>1000000 then '高净值' else '普通' end as cust_grp,
+       c.up_prdt_type_name,
+       sum(h.mkt_val) as mkt_val
+from dwd_cust_hold_d h
+inner join tot t on h.pty_id=t.pty_id
+inner join dim_product c on h.prdt_id=c.prdt_id
+where h.data_dt='20260331'
+group by 1,2
+order by 1, mkt_val desc nulls last;"
+96,26年Q1日均资产超过30万的客户中交易总额前10名,"with avg_aset as
+(
+select pty_id, sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90 as avg_aset
+from dws_cust_aset_d
+group by pty_id
+having sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90>300000
+),
+tran as
+(
+select pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+)
+select a.pty_id, round(a.avg_aset,2) as avg_aset, t.tran_amt
+from avg_aset a
+left join tran t on a.pty_id=t.pty_id
+order by t.tran_amt desc nulls last
+limit 10;"
+97,客户综合价值排名：26年Q1佣金贡献排名与日均资产排名之和最小的前20客户,"with rake as
+(
+select pty_id, sum(coalesce(buy_rake,0))+sum(coalesce(sell_rake,0)) as tot_rake
+from dwd_cust_tran_d
+where data_dt between '20260101' and '20260331'
+group by pty_id
+),
+aset as
+(
+select pty_id, sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90 as avg_aset
+from dws_cust_aset_d
+group by pty_id
+),
+score as
+(
+select coalesce(a.pty_id,r.pty_id) as pty_id,
+       coalesce(r.tot_rake,0) as tot_rake,
+       coalesce(a.avg_aset,0) as avg_aset,
+       rank() over(order by coalesce(r.tot_rake,0) desc) as rake_rank,
+       rank() over(order by coalesce(a.avg_aset,0) desc) as aset_rank
+from aset a
+full join rake r on a.pty_id=r.pty_id
+)
+select pty_id, tot_rake, round(avg_aset,2) as avg_aset, rake_rank, aset_rank,
+       rake_rank+aset_rank as total_rank
+from score
+order by total_rank, pty_id
+limit 20;"
