@@ -5,6 +5,7 @@ import csv
 from datetime import datetime, timezone
 from pathlib import Path
 import json
+import re
 from statistics import fmean
 import sys
 from typing import Any
@@ -24,6 +25,7 @@ from sql_tools import SqlSafetyError, validate_read_only_sql
 DEFAULT_GOLD = Path(__file__).with_name("gold_queries.json")
 DEFAULT_OUTPUT = Path(__file__).parents[1] / "eval_runs" / "competition_evaluation.json"
 SUPPORTED_METRICS = {"em", "ex", "rves"}
+TXT_SEPARATOR = re.compile(r"(?m)^[ \t]*-{40}[ \t]*\r?$")
 
 
 def _case_id(value: Any) -> str:
@@ -32,7 +34,35 @@ def _case_id(value: Any) -> str:
     return str(value).strip()
 
 
+def detect_input_format(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix == ".json":
+        return "json"
+    if suffix == ".txt":
+        return "txt"
+    raise ValueError(f"{path} 格式不支持，仅支持 .json 或 .txt")
+
+
+def _load_txt_cases(path: Path) -> list[dict[str, Any]]:
+    content = path.read_text(encoding="utf-8-sig")
+    if not content.strip():
+        raise ValueError(f"{path} 为空，没有可评测的 SQL")
+
+    sql_answers = TXT_SEPARATOR.split(content)
+    cases: list[dict[str, Any]] = []
+    for index, answer in enumerate(sql_answers, start=1):
+        sql = answer.strip()
+        if not sql:
+            raise ValueError(f"{path} 第 {index} 个 SQL 为空，请检查 40 个横线分隔符")
+        cases.append({"id": str(index), "sql": sql})
+    return cases
+
+
 def load_sql_cases(path: Path) -> list[dict[str, Any]]:
+    input_format = detect_input_format(path)
+    if input_format == "txt":
+        return _load_txt_cases(path)
+
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     cases: list[dict[str, Any]] = []
     if isinstance(data, list):
@@ -351,7 +381,10 @@ def main(argv: list[str] | None = None) -> int:
         raise ValueError("R-VES 重复次数必须大于 0，预热次数不能为负数")
 
     gold_cases = load_sql_cases(args.gold.resolve())
-    prediction_cases = load_sql_cases(args.predictions.resolve())
+    predictions_path = args.predictions.resolve()
+    prediction_format = detect_input_format(predictions_path)
+    prediction_cases = load_sql_cases(predictions_path)
+    print(f"输入格式: {prediction_format.upper()}（{len(prediction_cases)} 条 SQL）")
     runner = None
     identity = None
     if metrics & {"ex", "rves"}:
@@ -378,7 +411,8 @@ def main(argv: list[str] | None = None) -> int:
         "dialect": "PostgreSQL",
         "metrics": sorted(metrics),
         "gold_path": str(args.gold.resolve()),
-        "predictions_path": str(args.predictions.resolve()),
+        "predictions_path": str(predictions_path),
+        "predictions_format": prediction_format,
         "result_comparison": {
             "row_order": "ignored_by_default",
             "duplicates": "ignored_by_default",

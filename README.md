@@ -2,19 +2,14 @@
 
 华泰证券 Agentic 智能问数比赛项目。
 
-比赛 PostgreSQL 题目已经支持 OpenAI 兼容模型一键生成 SQL，并自动计算 EM、EX、
-R-VES。默认加载完整业务知识库：
+根目录脚本用于评测已经生成好的 SQL，固定计算 EM、EX、R-VES。输入文件地址不写死，
+通过 `-Predictions` 指定；脚本会自动识别 JSON 或 TXT：
 
 ```cmd
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_text2sql.ps1 -Limit 1 -RunName smoke_full_kb
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_text2sql.ps1 -Full -RunName baseline_full_kb
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_text2sql.ps1 -Predictions C:\path\answers.json -RunName json_test
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_text2sql.ps1 -Predictions C:\path\answers.txt -RunName txt_test
 ```
 
-完全不读取知识库的对照实验：
-
-```cmd
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_text2sql.ps1 -Full -RunName baseline_no_kb -KnowledgeMode None
-```
-
-首次使用请先配置本地 `.env`。详细说明见
-[`workspace/standard/text2sql_runner/README.md`](workspace/standard/text2sql_runner/README.md)。
+该脚本不调用模型 API，也不读取知识库。EX 和 R-VES 需要先在本地 `.env` 配置
+PostgreSQL 只读账号。详细说明见
+[`workspace/standard/competition_eval/README.md`](workspace/standard/competition_eval/README.md)。

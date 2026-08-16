@@ -1,25 +1,24 @@
 # Text-to-SQL 评测工具
 
-## 比赛 SQL 一键生成与评测
+## 比赛 SQL 一键评测
 
-仓库根目录的 `run_text2sql.ps1` 可以读取比赛题目和 PostgreSQL schema，通过
-OpenAI 兼容接口逐题生成 SQL，并自动计算 EM、EX、R-VES。该入口只处理比赛数据，
-不调用模型运行 Spider 或 BIRD。
+仓库根目录的 `run_text2sql.ps1` 接收已有的 SQL 答案文件，自动识别 JSON 或 TXT，
+并计算 EM、EX、R-VES。该入口不调用模型 API、不读取知识库，也不运行 Spider 或
+BIRD。
 
-先运行一道题进行付费冒烟测试：
-
-```powershell
-.\run_text2sql.ps1 -Limit 1 -RunName smoke
-```
-
-确认后运行当前全部7题：
+评测 JSON：
 
 ```powershell
-.\run_text2sql.ps1 -Full -RunName baseline
+.\run_text2sql.ps1 -Predictions C:\path\answers.json -RunName json_test
 ```
 
-模型答案同时保存为评分 JSON 和使用40个 `-` 分隔的 TXT。完整配置、断点续跑和
-输出文件说明见 `workspace/standard/text2sql_runner/README.md`。
+评测按 40 个横线分隔答案的 TXT：
+
+```powershell
+.\run_text2sql.ps1 -Predictions C:\path\answers.txt -RunName txt_test
+```
+
+完整格式和输出说明见 `workspace/standard/competition_eval/README.md`。
 
 ## 比赛 PostgreSQL 连接
 

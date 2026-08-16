@@ -50,6 +50,27 @@ python workspace/standard/competition_eval/check_connection.py
 - 8 张表均无 `INSERT/UPDATE/DELETE/TRUNCATE` 权限；
 - 单条 SQL 默认 30 秒超时。
 
+## 一键评测
+
+在仓库根目录的 CMD 中整行运行：
+
+```cmd
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run_text2sql.ps1 -Predictions C:\path\answers.json -RunName json_test
+```
+
+也可以把 `-Predictions` 换成 TXT 文件。文件地址不是写死的，可以使用绝对路径，
+也可以使用相对于当前命令行目录的路径。脚本会在终端显示识别到的格式，并固定计算
+EM、EX、R-VES；不会调用模型 API，也不会读取知识库。
+
+报告默认写入：
+
+```text
+workspace/standard/eval_runs/competition/<RunName>/
+├─ evaluation.json
+├─ evaluation.csv
+└─ evaluation.md
+```
+
 ## 预测文件格式
 
 推荐使用 JSON 数组：
@@ -70,6 +91,18 @@ python workspace/standard/competition_eval/check_connection.py
 }
 ```
 
+TXT 中每道题只写 SQL，答案之间用独占一行、正好 40 个 `-` 分隔：
+
+```text
+SELECT ...
+----------------------------------------
+WITH ... SELECT ...
+```
+
+TXT 没有显式题号，评分器会按出现顺序自动编号为 1、2、3……。分隔行前后可以有
+空格，但不能出现空答案。SQL 中普通的 `--` 注释或字符串里的横线不会被当成分隔符。
+文件扩展名不区分大小写，只接受 `.json` 和 `.txt`。
+
 缺少预测、SQL 语法错误、超时或安全校验失败都会在该题记 0 分，不会中断
 其他题目的评测。
 
@@ -82,6 +115,8 @@ python workspace/standard/competition_eval/evaluate.py `
   --ves-iterations 5 `
   --ves-warmups 1
 ```
+
+这里也可以直接传入 TXT；根目录的一键脚本只是把固定指标、输出目录和命令参数封装好。
 
 默认标准文件为 `gold_queries.json`，默认报告为
 `workspace/standard/eval_runs/competition_evaluation.json`。每次同时生成：

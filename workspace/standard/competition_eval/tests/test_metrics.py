@@ -93,6 +93,56 @@ class InputFormatTests(unittest.TestCase):
             self.assertEqual(load_sql_cases(list_path)[0]["id"], "1")
             self.assertEqual(load_sql_cases(mapping_path)[0]["sql"], "SELECT 1")
 
+    def test_txt_is_split_by_exactly_forty_hyphens(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "answers.txt"
+            path.write_text(
+                "SELECT 1 -- 普通 SQL 注释\n"
+                "----------------------------------------\n"
+                "WITH x AS (SELECT 2) SELECT * FROM x\n",
+                encoding="utf-8",
+            )
+
+            cases = load_sql_cases(path)
+
+            self.assertEqual([case["id"] for case in cases], ["1", "2"])
+            self.assertEqual(cases[0]["sql"], "SELECT 1 -- 普通 SQL 注释")
+            self.assertEqual(cases[1]["sql"], "WITH x AS (SELECT 2) SELECT * FROM x")
+
+    def test_txt_separator_must_be_on_its_own_line(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "answers.TXT"
+            path.write_text(
+                "SELECT '----------------------------------------' AS value\n",
+                encoding="utf-8",
+            )
+
+            cases = load_sql_cases(path)
+
+            self.assertEqual(len(cases), 1)
+
+    def test_txt_rejects_empty_answer_between_separators(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "answers.txt"
+            path.write_text(
+                "SELECT 1\n"
+                "----------------------------------------\n"
+                "----------------------------------------\n"
+                "SELECT 3\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "第 2 个 SQL 为空"):
+                load_sql_cases(path)
+
+    def test_unsupported_extension_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "answers.sql"
+            path.write_text("SELECT 1", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "仅支持 .json 或 .txt"):
+                load_sql_cases(path)
+
 
 if __name__ == "__main__":
     unittest.main()
