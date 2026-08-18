@@ -1,50 +1,34 @@
-# ads_cust_info_d
-
-> 表注释（`表描述.sql`）：**客户信息表**
+# ads_cust_info_d — 客户信息表
 
 ## 表描述
+客户维度快照表，每行一个客户在某一日的基础信息。（来源：用户提供，来自 `表描述.sql` 的 COMMENT）
 
-客户主档，一客户一行，`pty_id` 为业务主键。
-
-- **单日快照**：500 行，`data_dt` 仅 `20260531` 一个值（数据实测）
-- **全库客户基准**：其余四张客户事实表的 `pty_id` 均 100% 落在本表内（数据实测）
-- 五个码值字段需关联 `dim_public` 取中文，**必须同时限定 `code_type_id`**
+实测 `data_dt` 仅含 `20260531` 单日，共 500 个客户；`pty_id` 形如 `C` + 15 位数字，`cust_lvl_cd` 取值 1000001~1000006（全部命中 dim_public type 100），`cust_status` 实测仅 `2000001`（正常），`cust_type` 实测仅 `P`，`gender_cd`∈{5000002,5000003}，各码值字段均已与 dim_public 对应类型对齐（数据推测）。
 
 ## 字段
-
-| 字段 | 类型 | 含义 | 来源 | 数据实测 |
+| 字段 | 类型 | 含义 | 来源 | 备注 |
 |---|---|---|---|---|
-| `data_dt` | varchar(8) | 日期 | 表描述 | 全表单值 `20260531` |
-| `pty_id` | varchar(32) | 客户号 | 表描述 | `C`+15 位，500 行全唯一 |
-| `sor_pty_id` | varchar(32) | 经纪客户号 | 表描述 | 19 位数字，与 `pty_id` 尾号一一对应 |
-| `cust_lvl_cd` | varchar(12) | 客户等级 | 表描述 | 6 种取值，前缀 `100` |
-| `cust_status` | varchar(12) | **账户**状态 | 表描述 | 3 种取值，前缀 `200` |
-| `cust_type` | varchar(1) | 客户类型 | 表描述 | 抽样中仅 `P` |
-| `prov_name` | varchar(50) | 省份 | 表描述 | 如 `江苏省` |
-| `city_name` | varchar(50) | 城市 | 表描述 | 如 `苏州市`，与省份匹配 |
-| `birth_dt` | varchar(8) | 出生日期 | 表描述 | 8 位日期 |
-| `cust_age` | numeric(20,0) | 年龄 | 表描述 | 与 `birth_dt` 一致 |
-| `name` | varchar(40) | 姓名 | 表描述 | 已脱敏，形如 `文***` |
-| `gender_cd` | varchar(12) | 性别代码 | 表描述 | 2 种取值，前缀 `500` |
-| `edu_cd` | varchar(32) | 学历代码 | 表描述 | 7 种取值，前缀 `600` |
-| `prof_cd` | varchar(100) | 职业类型编码 | 表描述 | 31 种取值，前缀 `700` |
-| `org_id` | varchar(100) | 所属营业部ID | 表描述 | 28 种取值，100% 命中 `dim_branch` |
+| data_dt | varchar(8) | 日期 | 用户提供 | 字符型 YYYYMMDD，实测仅 20260531 |
+| pty_id | varchar(32) | 客户号 | 用户提供 | 形如 C+15位数字，跨表关联主键 |
+| sor_pty_id | varchar(32) | 经纪客户号 | 用户提供 | |
+| cust_lvl_cd | varchar(12) | 客户等级 | 用户提供 | → dim_public(code_type 100) |
+| cust_status | varchar(12) | 账户状态 | 用户提供 | → dim_public(code_type 200) |
+| cust_type | varchar(1) | 客户类型 | 用户提供 | 实测仅 `P`，推测 P=个人客户（数据推测） |
+| prov_name | varchar(50) | 省份 | 用户提供 | |
+| city_name | varchar(50) | 城市 | 用户提供 | |
+| birth_dt | varchar(8) | 出生日期 | 用户提供 | 字符型 YYYYMMDD |
+| cust_age | numeric(20,0) | 年龄 | 用户提供 | |
+| name | varchar(40) | 姓名 | 用户提供 | |
+| gender_cd | varchar(12) | 性别代码 | 用户提供 | → dim_public(code_type 500) |
+| edu_cd | varchar(32) | 学历代码 | 用户提供 | → dim_public(code_type 600) |
+| prof_cd | varchar(100) | 职业类型编码 | 用户提供 | → dim_public(code_type 700) |
+| org_id | varchar(100) | 所属营业部ID | 用户提供 | → dim_branch.org_id |
 
-## 码值关联对照（数据实测）
-
-码值前 3 位恰等于 `dim_public.code_type_id`，155 行无例外，据此确定：
-
-| 本表字段 | `code_type_id` | 字典含义 |
-|---|---|---|
-| `cust_lvl_cd` | `100` | 紫金理财钻石卡/白金卡/金卡/银卡/卡客户 |
-| `cust_status` | `200` | 正常/冻结/销户/休眠已确认等 11 种 |
-| `gender_cd` | `500` | 男/女/未知/其他/非自然人 |
-| `edu_cd` | `600` | 博士/硕士/学士/大专/中专/高中等 9 种 |
-| `prof_cd` | `700` | 59 种职业分类 |
+## 关系
+- `pty_id` ↔ `dws_cust_aset_d` / `dws_cust_fin_d` / `dwd_cust_hold_d` / `dwd_cust_tran_d` 的 `pty_id`（关系状态：推测，字段名与取值形态一致）。
+- 码值字段 `cust_lvl_cd`/`cust_status`/`gender_cd`/`edu_cd`/`prof_cd` → `dim_public.code`（需带 `code_type_id` 过滤）（关系状态：推测，已抽样验证命中）。
+- `org_id` → `dim_branch.org_id`（关系状态：推测）。
 
 ## 待确认
-
-1. `cust_status` 注释为"**账户**状态"而非客户状态，而字典类型 `200` 的取值（正常/首次接触/紧密/回访失败）
-   更像**客户关系状态**。二者语义不一致，需澄清该字段到底描述什么。
-2. `cust_type` 抽样只见 `P`，其余取值及含义未知（表描述仅写"客户类型"）。
-3. 本表 `data_dt` 为 `20260531`，**晚于所有事实表**（1–3 月）。属性是否适用于历史区间需确认。
+- `cust_type` 的完整枚举与含义（当前仅见 `P`）。
+- 码值语义是否一律以 dim_public 为准（建议是）。
