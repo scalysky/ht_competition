@@ -44,6 +44,7 @@ class PowerShellLauncherTests(unittest.TestCase):
         completed = self.run_launcher("-Help")
         self.assertEqual(completed.returncode, 0, completed.stdout)
         self.assertIn("-Predictions", completed.stdout)
+        self.assertIn("-Gold", completed.stdout)
         self.assertIn("JSON", completed.stdout)
         self.assertIn("TXT", completed.stdout)
 
@@ -101,6 +102,51 @@ class PowerShellLauncherTests(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stdout)
         self.assertIn("Input format: TXT", completed.stdout)
+
+    def test_custom_gold_file_is_forwarded_to_evaluator(self) -> None:
+        with tempfile.TemporaryDirectory() as output_root:
+            predictions = Path(output_root) / "answers.txt"
+            predictions.write_text("SELECT 1\n", encoding="utf-8")
+            gold = Path(output_root) / "custom_gold.json"
+            gold.write_text('[{"id": 1, "sql": "SELECT 1"}]\n', encoding="utf-8")
+            with tempfile.TemporaryDirectory() as command_dir:
+                fake_python = Path(command_dir) / "python.cmd"
+                fake_python.write_text("@echo off\necho %*\nexit /b 0\n", encoding="ascii")
+                environment = os.environ.copy()
+                environment["PATH"] = command_dir + os.pathsep + environment["PATH"]
+
+                completed = self.run_launcher(
+                    "-Predictions",
+                    str(predictions),
+                    "-Gold",
+                    str(gold),
+                    "-OutputRoot",
+                    output_root,
+                    environment=environment,
+                )
+
+        self.assertEqual(completed.returncode, 0, completed.stdout)
+        self.assertIn(f"Gold file: {gold.resolve()}", completed.stdout)
+        self.assertIn(f"--gold {gold.resolve()}", completed.stdout)
+
+    def test_existing_run_directory_is_not_overwritten(self) -> None:
+        with tempfile.TemporaryDirectory() as output_root:
+            predictions = Path(output_root) / "answers.txt"
+            predictions.write_text("SELECT 1\n", encoding="utf-8")
+            run_name = "existing-run"
+            (Path(output_root) / run_name).mkdir()
+
+            completed = self.run_launcher(
+                "-Predictions",
+                str(predictions),
+                "-RunName",
+                run_name,
+                "-OutputRoot",
+                output_root,
+            )
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("already exists", completed.stdout)
 
 
 if __name__ == "__main__":

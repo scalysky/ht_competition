@@ -11,14 +11,30 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 
 ## 前置条件
 
-- 只能在当前模型自己的隔离工作目录中执行。
-- 当前目录必须包含 `.env` 和 `at2s` skill，不要求存在固定名称的 `data/` 目录。
-- 用户必须提供 `data_path`，指向8个目标数据表 CSV 所在的目录。
+- 启动 OpenCode 时的当前目录就是唯一的 `workspace_root`。开始时只记录当前绝对路径，不得枚举或搜索其父目录、兄弟目录以及 `C:\Code\Fin_tech_match\at2s_runs` 下的其它模型目录。
+- `workspace_root` 必须是模型自己的隔离工作目录，不得等于评测主仓库 `C:\Code\Fin_tech_match\ht_competition`；不满足时立即停止，不得自行寻找或切换到其它工作区。
+- `workspace_root` 必须包含 `.env` 和本地 `workspace/skills/at2s/`。
+- 用户必须提供 `data_path`，指向当前 `workspace_root` 内8个目标数据表 CSV 所在的目录；路径解析后必须仍位于 `workspace_root` 下。
 - 用户必须提供 `questions_path`，指向仅包含题目、不包含标准 SQL 的题目文件。
-- 开始前确认 `data_path` 和 `questions_path` 均存在且可读；任一路径缺失、不可读或含义不明确时停止，不得猜测或自行搜索替代文件。
+- 用户必须提供 `gold_path`，指向与 `questions_path` 对应的 JSON 或 TXT 标准答案文件。
+- 开始前确认 `data_path` 和 `questions_path` 存在且可读；只确认 `gold_path` 存在、是文件且扩展名为 `.json` 或 `.txt`，不得打开、读取、解析或计算其摘要。任一路径缺失、不可读或含义不明确时停止，不得猜测或自行搜索替代文件。
 - 使用新的 `run_name`，且名称必须符合 `^[A-Za-z0-9._-]+$`。用户没有指定时，采用 `<当前工作目录名>_skill`。
 - 评测主仓库固定为 `C:\Code\Fin_tech_match\ht_competition`。生成 SQL 前必须确认其中的 `run_text2sql.ps1` 存在。
-- 如果 `generated/with_at2s/predictions.txt` 或目标评测目录已经存在，立即停止，不得覆盖。
+- 只检查 `workspace_root/generated/with_at2s/predictions.txt` 和本次 `run_name` 对应的目标评测目录这两个确切路径；任一已存在就立即停止，不得列出同级目录或覆盖。
+
+## 访问白名单
+
+流程只能访问以下范围：
+
+- `workspace_root` 内的本地 at2s、`.knowledge`、`data_path` 和 `generated/`；
+- `questions_path`：只读；
+- `gold_path`：只传给正式评测脚本，不读取内容；
+- 评测主仓库中的 `run_text2sql.ps1`、`workspace/standard/competition_eval/` 和本技能校验器；
+- 本次 `run_name` 对应的确切评测输出目录。
+
+不得读取评测主仓库中的文档、准备脚本、历史运行、其它数据集或其它模型路径；不得调用 `prepare_dual_model_runs.ps1`。不得使用系统 `%TEMP%`，临时文件只能写入 `workspace_root/generated/.tmp/`。
+
+执行命令前检查其路径参数。命令或权限请求一旦涉及 `%TEMP%`、`$env:TEMP`、`$env:TMP`、`C:\Users\JO\AppData\Local\Temp\*`、整个 `at2s_runs` 或另一模型目录，立即取消该命令；改用当前工作区内的确切路径，不得批准通配符访问。
 
 ## 执行流程
 
@@ -26,7 +42,7 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 
 **必须加载的子 skill：** `at2s`
 
-先运行 `kb-check`。如果知识库结构或表描述缺失，使用 `data_path` 指向目录中的8个目标 CSV 和 PostgreSQL 只读抽样构建全部8张表的知识库。
+先运行 `kb-check`，但只检查当前 at2s 副本的 `.knowledge/` 和明确给出的8张目标表，不启用 kb-check 的可选线索搜索。如果知识库结构或表描述缺失，使用 `data_path` 指向目录中的8个目标 CSV 和 PostgreSQL 只读抽样构建全部8张表的知识库。
 
 构建知识库时，只允许从 `data_path` 读取与以下8个表名前缀匹配的 CSV：
 
@@ -39,7 +55,7 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 - `dws_cust_aset_d*.csv`
 - `dws_cust_fin_d*.csv`
 
-每个表名前缀必须恰好匹配一个文件。任一目标缺失或匹配到多个文件时停止，不得自行选择。不得读取 `data_path` 中的 `Q&A.xlsx`、`Q&A*.csv`、`*_answers.csv`、标准答案文件或其它非目标文件。
+只检查 `data_path` 顶层，不递归。每个表名前缀必须恰好匹配一个文件。任一目标缺失或匹配到多个文件时停止，不得自行选择。不得读取 `data_path` 中的 `Q&A.xlsx`、`Q&A*.csv`、`*_answers.csv`、标准答案文件或其它非目标文件。
 
 抽样限制：
 
@@ -67,17 +83,21 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 
 - `Q&A.xlsx`；
 - `Q&A*.csv` 中除当前 `questions_path` 以外的文件，尤其是 `*_answers.csv`；
-- 标准答案文件或其内容；
+- `gold_path` 指向的文件及任何其它标准答案文件或其内容；`gold_path` 只能原样传递给正式评测脚本；
 - 任何评测输出；
 - 历史预测文件；
 - 其它模型的知识库或输出。
 
 ### 3. 校验并冻结预测
 
-在评测主仓库中运行：
+保持当前目录为 `workspace_root`，用绝对路径调用当前隔离副本中的校验器，并显式指定评测主仓库；不得向父目录回溯查找评测器：
 
 ```powershell
-python workspace/skills/running-text2sql-benchmark/scripts/validate_predictions.py <预测文件绝对路径> --expected-count <N>
+$env:PYTHONDONTWRITEBYTECODE = '1'
+python <workspace_root>\workspace\skills\running-text2sql-benchmark\scripts\validate_predictions.py `
+  <预测文件绝对路径> `
+  --expected-count <N> `
+  --repo-root C:\Code\Fin_tech_match\ht_competition
 ```
 
 校验结果必须包含 `count=<N>` 和 SHA-256 摘要。将该摘要记录到 `generation_notes.md`。
@@ -91,11 +111,14 @@ python workspace/skills/running-text2sql-benchmark/scripts/validate_predictions.
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Code\Fin_tech_match\ht_competition\run_text2sql.ps1 `
   -Predictions <预测文件绝对路径> `
+  -Gold <gold_path> `
   -OutputRoot C:\Code\Fin_tech_match\ht_competition\workspace\standard\eval_runs\competition\model_comparison `
   -RunName <run_name>
 ```
 
 将评测器视为不透明组件：不得读取评测器内部实现、标准答案文件或标准答案内容。如果评测失败，只汇报命令错误并停止，不得根据评测反馈修改 SQL 或重新评测同一预测文件。
+
+评测成功后，只能使用终端中的 `Summary` 和目标目录中的 `evaluation.csv` 汇报指标及失败 ID；`evaluation.csv` 是不含标准 SQL 的脱敏报告。禁止读取 `evaluation.json`，因为其中包含 `gold_sql`；也不得读取其它历史评测目录。
 
 ## 最终汇报
 
@@ -103,11 +126,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Code\Fin_tech_match\h
 
 - 实际生成的知识库文件；
 - `data_path` 的实际路径；
+- `gold_path` 的实际路径，不得汇报其内容或摘要；
 - 题目文件路径、题目数量和题目文件 SHA-256；
 - 预测文件路径及 SHA-256；
 - 评测输出目录；
 - EM、EX、R-VES；
-- 评测失败的题目及错误信息。
+- 从本次 `evaluation.csv` 得到的失败题目 ID 及错误信息。
 
 如果正式评测开始后预测文件的 SHA-256 发生变化，必须将该次运行标记为无效。
 
@@ -115,11 +139,15 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Code\Fin_tech_match\h
 
 | 错误 | 必须采取的处理 |
 |---|---|
-| `data_path` 或 `questions_path` 缺失、不可读 | 在读取数据或构建知识库前停止 |
+| `data_path`、`questions_path` 或 `gold_path` 缺失、不可读 | 在读取数据或构建知识库前停止 |
+| 当前目录是评测主仓库或不是模型隔离工作区 | 立即停止，不搜索 `at2s_runs` 或切换目录 |
+| `data_path` 位于 `workspace_root` 之外 | 立即停止，要求改用当前模型自己的数据副本 |
+| `gold_path` 不是 JSON 或 TXT 文件 | 在读取题目或生成 SQL 前停止 |
 | `data_path` 中任一表名前缀没有唯一匹配的 CSV | 在构建知识库前停止 |
 | 题目 CSV 包含 `SQL` 或其它答案列 | 拒绝读取并停止 |
 | 知识库不完整 | 在生成 SQL 前停止 |
 | 预测文件未通过校验 | 在首次评测前修正并重新校验 |
 | 目标评测目录已存在 | 更换新的 `run_name`，禁止覆盖 |
+| 需要汇报评测明细 | 只读本次 `evaluation.csv`，禁止读取 `evaluation.json` |
 | 正式评测得分较低 | 如实汇报，禁止修改本次盲测预测 |
 | 用户要求查看 gold 后改进同一次运行 | 保留被冻结的结果，拒绝污染本次盲测 |

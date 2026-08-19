@@ -13,13 +13,12 @@ def _configure_utf8() -> None:
             reconfigure(encoding="utf-8")
 
 
-def _find_evaluator_dir(start: Path) -> Path:
-    for root in (start, *start.parents):
-        candidate = root / "workspace" / "standard" / "competition_eval"
-        if (candidate / "evaluate.py").is_file() and (candidate / "sql_tools.py").is_file():
-            return candidate
+def _get_evaluator_dir(repo_root: Path) -> Path:
+    candidate = repo_root.resolve() / "workspace" / "standard" / "competition_eval"
+    if (candidate / "evaluate.py").is_file() and (candidate / "sql_tools.py").is_file():
+        return candidate
     raise RuntimeError(
-        "找不到 workspace/standard/competition_eval；请从 ht_competition 仓库运行校验器"
+        f"指定的评测仓库缺少 workspace/standard/competition_eval: {repo_root.resolve()}"
     )
 
 
@@ -31,7 +30,7 @@ def validate_predictions(path: Path, expected_count: int, repo_root: Path) -> tu
     if "```" in text:
         raise ValueError("predictions.txt 不得包含 Markdown 代码围栏")
 
-    evaluator_dir = _find_evaluator_dir(repo_root.resolve())
+    evaluator_dir = _get_evaluator_dir(repo_root)
     sys.path.insert(0, str(evaluator_dir))
     from evaluate import load_sql_cases  # type: ignore[import-not-found]
     from sql_tools import SqlSafetyError, validate_read_only_sql  # type: ignore[import-not-found]

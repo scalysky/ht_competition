@@ -21,3 +21,8 @@ workspace/standard/spider_eval/.nltk_data/
 workspace/skills/at2s/skills/db-access/access.md
 workspace/skills/at2s/skills/kb-refine/config.md
 
+# Local at2s knowledge and model-generation outputs.
+workspace/skills/at2s/.knowledge/
+workspace/generated/
+/generated/
+

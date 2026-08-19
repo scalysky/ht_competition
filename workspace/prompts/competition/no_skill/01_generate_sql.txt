@@ -1,0 +1,26 @@
+请使用模型原生能力完成 questions_path 中的 PostgreSQL Text-to-SQL 题目。
+
+开始前请把以下占位符替换为当前无 Skill 隔离工作目录中的绝对路径：
+
+data_path=<当前无 Skill 工作目录>\data
+questions_path=<题目文件绝对路径>
+predictions_path=<当前无 Skill 工作目录>\generated\no_skill\predictions.txt
+notes_path=<当前无 Skill 工作目录>\generated\no_skill\generation_notes.md
+
+这是无 Skill、无知识库基线实验，必须遵守：
+
+1. 禁止加载或调用任何 Skill，包括 at2s 和 running-text2sql-benchmark。
+2. 禁止读取任何 workspace/skills/at2s/、.knowledge、标准答案、评测输出、历史预测或其它模型目录。
+3. 当前启动目录是唯一模型工作区；不得枚举、搜索或读取父目录、兄弟目录或其它模型工作区。
+4. 只读取明确给出的 data_path 和 questions_path。data_path 只检查顶层8个目标表 CSV，不递归；不得读取 Q&A.xlsx 或答案文件。
+5. questions_path 可为 MD、TXT 或 CSV。CSV 必须含“序号”和“问题”两列，且不得含“SQL”或其它答案列。
+6. 按 questions_path 中的编号和顺序确定题目数量 N；不要写死题目数。题目为空、编号重复或无法明确解析时停止。
+7. 不要向我提问；遇到不明确的业务口径时，采用最合理解释继续生成并写入 notes_path。
+8. CSV 每表最多读取100行。可使用当前工作目录 .env 中的 PostgreSQL 只读连接查看结构、每表最多100行样例及最多100个码值；查询必须设置超时。
+9. PostgreSQL 只允许 SELECT 和只读 EXPLAIN，禁止任何写操作。
+10. 每道题生成一条 PostgreSQL SELECT 或 WITH ... SELECT，共 N 条，严格保持题目顺序。
+11. predictions_path 只能包含 SQL，以及 N-1 行独占一行、正好40个横线的分隔线；不得包含题号、解释、注释或 Markdown 代码围栏。
+12. 业务口径、假设和风险只写入 notes_path，不得混入 predictions_path。
+13. 不执行评分，不寻找标准答案，不使用系统 %TEMP%；临时文件只能位于当前工作区 generated/.tmp/。
+
+一次完成全部题目，不要中途暂停或等待确认。
