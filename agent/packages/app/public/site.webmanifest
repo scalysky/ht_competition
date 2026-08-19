@@ -1,0 +1,10 @@
+{
+  "name": "华泰金融数据Agent",
+  "short_name": "华泰金融数据Agent",
+  "id": "/",
+  "start_url": "/",
+  "scope": "/",
+  "theme_color": "#080808",
+  "background_color": "#080808",
+  "display": "standalone"
+}
