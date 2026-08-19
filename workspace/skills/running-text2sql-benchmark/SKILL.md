@@ -15,9 +15,10 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 - `workspace_root` 必须是模型自己的隔离工作目录，不得等于评测主仓库 `C:\Code\Fin_tech_match\ht_competition`；不满足时立即停止，不得自行寻找或切换到其它工作区。
 - `workspace_root` 必须包含 `.env` 和本地 `workspace/skills/at2s/`。
 - 用户必须提供 `data_path`，使用明确的绝对路径指向8个目标数据表 CSV 所在目录。该目录可以位于 `workspace_root` 外，但只能读取，禁止在其中创建、修改或删除任何文件。
-- 用户必须提供 `questions_path`，指向仅包含题目、不包含标准 SQL 的题目文件。
-- 用户必须提供 `gold_path`，指向与 `questions_path` 对应的 JSON 或 TXT 标准答案文件。
-- 开始前确认 `data_path` 和 `questions_path` 存在且可读；只确认 `gold_path` 存在、是文件且扩展名为 `.json` 或 `.txt`，不得打开、读取、解析或计算其摘要。任一路径缺失、不可读或含义不明确时停止，不得猜测或自行搜索替代文件。
+- `questions_path` 指向仅包含题目、不包含标准 SQL 的题目文件；未提供时默认使用 `workspace\dataset\Q&A100_questions.csv`。
+- `gold_path` 指向与 `questions_path` 对应的 JSON 或 TXT 标准答案文件；未提供时默认使用 `workspace\dataset\Q&A100_answers.json`。
+- `questions_path` 和 `gold_path` 可以是绝对路径，也可以是相对于固定评测主仓库 `C:\Code\Fin_tech_match\ht_competition` 的相对路径；不得相对于模型的 `workspace_root` 解析。解析后使用规范化的绝对路径执行后续步骤。
+- 开始前确认 `data_path` 和解析后的 `questions_path` 存在且可读；只确认解析后的 `gold_path` 存在、是文件且扩展名为 `.json` 或 `.txt`，不得打开、读取、解析或计算其摘要。任一路径缺失、不可读或含义不明确时停止，不得猜测或自行搜索替代文件。
 - 使用新的 `run_name`，且名称必须符合 `^[A-Za-z0-9._-]+$`。用户没有指定时，采用 `<当前工作目录名>_skill`。
 - 评测主仓库固定为 `C:\Code\Fin_tech_match\ht_competition`。生成 SQL 前必须确认其中的 `run_text2sql.ps1` 存在。
 - 只检查 `workspace_root/generated/with_at2s/predictions.txt` 和本次 `run_name` 对应的目标评测目录这两个确切路径；任一已存在就立即停止，不得列出同级目录或覆盖。
@@ -28,8 +29,8 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 
 - `workspace_root` 内的本地 at2s、`.knowledge` 和 `generated/`；
 - 用户明确指定的 `data_path`：只读且只检查目录顶层的8个目标 CSV；
-- `questions_path`：只读；
-- `gold_path`：只传给正式评测脚本，不读取内容；
+- 解析后的 `questions_path`：只读；
+- 解析后的 `gold_path`：只传给正式评测脚本，不读取内容；
 - 评测主仓库中的 `run_text2sql.ps1`、`workspace/standard/competition_eval/` 和本技能校验器；
 - 本次 `run_name` 对应的确切评测输出目录。
 
@@ -112,7 +113,7 @@ python <workspace_root>\workspace\skills\running-text2sql-benchmark\scripts\vali
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Code\Fin_tech_match\ht_competition\run_text2sql.ps1 `
   -Predictions <预测文件绝对路径> `
-  -Gold <gold_path> `
+  -Gold <解析后的 gold_path 绝对路径> `
   -OutputRoot C:\Code\Fin_tech_match\ht_competition\workspace\standard\eval_runs\competition\model_comparison `
   -RunName <run_name>
 ```
@@ -140,7 +141,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Code\Fin_tech_match\h
 
 | 错误 | 必须采取的处理 |
 |---|---|
-| `data_path`、`questions_path` 或 `gold_path` 缺失、不可读 | 在读取数据或构建知识库前停止 |
+| `data_path` 或解析后的 `questions_path`、`gold_path` 缺失、不可读 | 在读取数据或构建知识库前停止 |
 | 当前目录是评测主仓库或不是模型隔离工作区 | 立即停止，不搜索 `at2s_runs` 或切换目录 |
 | `data_path` 不是明确的绝对目录，或流程试图向其中写入 | 在构建知识库前停止 |
 | `gold_path` 不是 JSON 或 TXT 文件 | 在读取题目或生成 SQL 前停止 |

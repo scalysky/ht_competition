@@ -1,9 +1,9 @@
 请加载并执行 running-text2sql-benchmark skill。
 
 data_path=C:\Code\Fin_tech_match\ht_competition\01-金融大模型与智能体赛道-华泰证券-Agentic智能问数在客户营销场景的应用
-questions_path=C:\Code\Fin_tech_match\ht_competition\workspace\dataset\Q&A5_questions.csv
-gold_path=C:\Code\Fin_tech_match\ht_competition\workspace\dataset\Q&A5_answers.json
-run_name=dsv4f_skill_q5
+questions_path=workspace\dataset\Q&A100_questions.csv
+gold_path=workspace\dataset\Q&A100_answers.json
+run_name=dsv4f_skill_qa100
 
 当前 OpenCode 必须已经从 C:\Code\Fin_tech_match\at2s_runs\dsv4f 启动，该目录是本次运行唯一的模型工作区。
 

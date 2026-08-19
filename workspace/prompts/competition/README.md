@@ -62,8 +62,8 @@ C:\Code\Fin_tech_match\ht_competition\workspace\standard\eval_runs\competition\m
 ## 参数说明
 
 - `data_path`：使用用户明确给出的绝对路径，可位于模型工作目录外。两个模型可以共享同一份输入 CSV；模型只能读取该目录顶层8个目标文件，不能向其中写入。
-- `questions_path`：题目文件，可为 MD、TXT 或 CSV。CSV 必须含 `序号`、`问题` 两列，不能含 `SQL` 或其它答案列。
-- `gold_path`：标准答案文件，只支持 JSON 或 TXT。生成模型不得读取其内容；正式评测时通过 `run_text2sql.ps1 -Gold` 原样传入。
+- `questions_path`：题目文件，可为 MD、TXT 或 CSV。相对路径统一相对于 `C:\Code\Fin_tech_match\ht_competition` 解析，不相对于模型启动目录；默认是 `workspace\dataset\Q&A100_questions.csv`。CSV 必须含 `序号`、`问题` 两列，不能含 `SQL` 或其它答案列。
+- `gold_path`：标准答案文件，只支持 JSON 或 TXT，相对路径使用同一主仓库基准；默认是 `workspace\dataset\Q&A100_answers.json`。生成模型不得读取其内容；正式评测时传入解析后的绝对路径。
 - `run_name`：本次评测的唯一名称，只能包含英文字母、数字、点、下划线和横线。
 
 题目数量不写死。模型从 `questions_path` 解析数量 `N`，生成 `N` 条 SQL 和 `N-1` 条40横线分隔线。
