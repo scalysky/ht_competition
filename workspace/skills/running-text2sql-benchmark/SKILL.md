@@ -14,7 +14,7 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 - 启动 OpenCode 时的当前目录就是唯一的 `workspace_root`。开始时只记录当前绝对路径，不得枚举或搜索其父目录、兄弟目录以及 `C:\Code\Fin_tech_match\at2s_runs` 下的其它模型目录。
 - `workspace_root` 必须是模型自己的隔离工作目录，不得等于评测主仓库 `C:\Code\Fin_tech_match\ht_competition`；不满足时立即停止，不得自行寻找或切换到其它工作区。
 - `workspace_root` 必须包含 `.env` 和本地 `workspace/skills/at2s/`。
-- 用户必须提供 `data_path`，指向当前 `workspace_root` 内8个目标数据表 CSV 所在的目录；路径解析后必须仍位于 `workspace_root` 下。
+- 用户必须提供 `data_path`，使用明确的绝对路径指向8个目标数据表 CSV 所在目录。该目录可以位于 `workspace_root` 外，但只能读取，禁止在其中创建、修改或删除任何文件。
 - 用户必须提供 `questions_path`，指向仅包含题目、不包含标准 SQL 的题目文件。
 - 用户必须提供 `gold_path`，指向与 `questions_path` 对应的 JSON 或 TXT 标准答案文件。
 - 开始前确认 `data_path` 和 `questions_path` 存在且可读；只确认 `gold_path` 存在、是文件且扩展名为 `.json` 或 `.txt`，不得打开、读取、解析或计算其摘要。任一路径缺失、不可读或含义不明确时停止，不得猜测或自行搜索替代文件。
@@ -26,13 +26,14 @@ description: 当需要在隔离的模型工作目录中，使用 at2s 完成华�
 
 流程只能访问以下范围：
 
-- `workspace_root` 内的本地 at2s、`.knowledge`、`data_path` 和 `generated/`；
+- `workspace_root` 内的本地 at2s、`.knowledge` 和 `generated/`；
+- 用户明确指定的 `data_path`：只读且只检查目录顶层的8个目标 CSV；
 - `questions_path`：只读；
 - `gold_path`：只传给正式评测脚本，不读取内容；
 - 评测主仓库中的 `run_text2sql.ps1`、`workspace/standard/competition_eval/` 和本技能校验器；
 - 本次 `run_name` 对应的确切评测输出目录。
 
-不得读取评测主仓库中的文档、准备脚本、历史运行、其它数据集或其它模型路径；不得调用 `prepare_dual_model_runs.ps1`。不得使用系统 `%TEMP%`，临时文件只能写入 `workspace_root/generated/.tmp/`。
+除用户明确指定的 `data_path` 外，不得读取评测主仓库中的文档、准备脚本、历史运行、其它数据集或其它模型路径；不得调用 `prepare_dual_model_runs.ps1`。不得使用系统 `%TEMP%`，临时文件只能写入 `workspace_root/generated/.tmp/`。
 
 执行命令前检查其路径参数。命令或权限请求一旦涉及 `%TEMP%`、`$env:TEMP`、`$env:TMP`、`C:\Users\JO\AppData\Local\Temp\*`、整个 `at2s_runs` 或另一模型目录，立即取消该命令；改用当前工作区内的确切路径，不得批准通配符访问。
 
@@ -141,7 +142,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Code\Fin_tech_match\h
 |---|---|
 | `data_path`、`questions_path` 或 `gold_path` 缺失、不可读 | 在读取数据或构建知识库前停止 |
 | 当前目录是评测主仓库或不是模型隔离工作区 | 立即停止，不搜索 `at2s_runs` 或切换目录 |
-| `data_path` 位于 `workspace_root` 之外 | 立即停止，要求改用当前模型自己的数据副本 |
+| `data_path` 不是明确的绝对目录，或流程试图向其中写入 | 在构建知识库前停止 |
 | `gold_path` 不是 JSON 或 TXT 文件 | 在读取题目或生成 SQL 前停止 |
 | `data_path` 中任一表名前缀没有唯一匹配的 CSV | 在构建知识库前停止 |
 | 题目 CSV 包含 `SQL` 或其它答案列 | 拒绝读取并停止 |

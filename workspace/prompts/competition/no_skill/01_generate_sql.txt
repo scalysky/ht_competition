@@ -1,8 +1,8 @@
 请使用模型原生能力完成 questions_path 中的 PostgreSQL Text-to-SQL 题目。
 
-开始前请把以下占位符替换为当前无 Skill 隔离工作目录中的绝对路径：
+开始前请把以下占位符替换为实际绝对路径：
 
-data_path=<当前无 Skill 工作目录>\data
+data_path=<8个目标表 CSV 所在目录的绝对路径>
 questions_path=<题目文件绝对路径>
 predictions_path=<当前无 Skill 工作目录>\generated\no_skill\predictions.txt
 notes_path=<当前无 Skill 工作目录>\generated\no_skill\generation_notes.md
@@ -11,8 +11,8 @@ notes_path=<当前无 Skill 工作目录>\generated\no_skill\generation_notes.md
 
 1. 禁止加载或调用任何 Skill，包括 at2s 和 running-text2sql-benchmark。
 2. 禁止读取任何 workspace/skills/at2s/、.knowledge、标准答案、评测输出、历史预测或其它模型目录。
-3. 当前启动目录是唯一模型工作区；不得枚举、搜索或读取父目录、兄弟目录或其它模型工作区。
-4. 只读取明确给出的 data_path 和 questions_path。data_path 只检查顶层8个目标表 CSV，不递归；不得读取 Q&A.xlsx 或答案文件。
+3. 当前启动目录是唯一模型工作区；除明确指定的只读 data_path 和 questions_path 外，不得枚举、搜索或读取父目录、兄弟目录或其它模型工作区。
+4. data_path 可以位于当前工作区外，但只能读取其顶层8个目标表 CSV，不递归，也不得在其中创建、修改或删除文件；不得读取 Q&A.xlsx 或答案文件。
 5. questions_path 可为 MD、TXT 或 CSV。CSV 必须含“序号”和“问题”两列，且不得含“SQL”或其它答案列。
 6. 按 questions_path 中的编号和顺序确定题目数量 N；不要写死题目数。题目为空、编号重复或无法明确解析时停止。
 7. 不要向我提问；遇到不明确的业务口径时，采用最合理解释继续生成并写入 notes_path。

@@ -1,6 +1,6 @@
 请加载并执行 running-text2sql-benchmark skill。
 
-data_path=C:\Code\Fin_tech_match\at2s_runs\minimax_m3\data
+data_path=C:\Code\Fin_tech_match\ht_competition\01-金融大模型与智能体赛道-华泰证券-Agentic智能问数在客户营销场景的应用
 questions_path=C:\Code\Fin_tech_match\ht_competition\workspace\dataset\Q&A5_questions.csv
 gold_path=C:\Code\Fin_tech_match\ht_competition\workspace\dataset\Q&A5_answers.json
 run_name=minimax_m3_skill_q5
@@ -9,7 +9,7 @@ run_name=minimax_m3_skill_q5
 
 严格执行 Skill 的完整流程：构建并复查当前工作区自己的知识库，根据题目文件的实际题目数量生成等量 SQL，校验并冻结预测，然后只执行一次正式评测。不要中途提问、暂停或等待确认。
 
-不得枚举、搜索或读取父目录、兄弟目录、C:\Code\Fin_tech_match\at2s_runs\dsv4f 或其它模型工作区。不得使用系统 %TEMP%；临时文件只能放在当前工作区 generated/.tmp/。
+除上面明确指定且只读的 data_path、questions_path、gold_path 和评测所需固定路径外，不得枚举、搜索或读取父目录、兄弟目录、C:\Code\Fin_tech_match\at2s_runs\dsv4f 或其它模型工作区。不得向 data_path 写入任何文件；不得使用系统 %TEMP%；临时文件只能放在当前工作区 generated/.tmp/。
 
 不得打开、读取、解析或计算 gold_path 的摘要；只能确认它是指定路径下的 JSON 文件，并在正式评测命令中通过 -Gold 原样传入。不得读取 evaluation.json；评测后只使用终端 Summary 和本次 evaluation.csv。
 

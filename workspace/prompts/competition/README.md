@@ -38,7 +38,6 @@ opencode
 
 ```text
 .env
-data/                                      # 只含8个目标表 CSV
 opencode.json
 workspace/skills/at2s/
 workspace/skills/running-text2sql-benchmark/
@@ -62,7 +61,7 @@ C:\Code\Fin_tech_match\ht_competition\workspace\standard\eval_runs\competition\m
 
 ## 参数说明
 
-- `data_path`：必须位于当前模型工作目录内，只放8个目标表 CSV；两个模型各用自己的数据副本。
+- `data_path`：使用用户明确给出的绝对路径，可位于模型工作目录外。两个模型可以共享同一份输入 CSV；模型只能读取该目录顶层8个目标文件，不能向其中写入。
 - `questions_path`：题目文件，可为 MD、TXT 或 CSV。CSV 必须含 `序号`、`问题` 两列，不能含 `SQL` 或其它答案列。
 - `gold_path`：标准答案文件，只支持 JSON 或 TXT。生成模型不得读取其内容；正式评测时通过 `run_text2sql.ps1 -Gold` 原样传入。
 - `run_name`：本次评测的唯一名称，只能包含英文字母、数字、点、下划线和横线。
@@ -71,7 +70,7 @@ C:\Code\Fin_tech_match\ht_competition\workspace\standard\eval_runs\competition\m
 
 ## 盲评与路径边界
 
-- 只允许模型访问当前模型工作目录、明确指定的 `questions_path`，以及本次评测必需的主仓库固定路径。
+- 只允许模型访问当前模型工作目录、明确指定的 `data_path` 和 `questions_path`，以及本次评测必需的主仓库固定路径。
 - `gold_path` 只能检查文件存在性并传给评测脚本，不能打开、读取、解析或计算摘要。
 - 不得访问另一模型目录、`C:\Code\Fin_tech_match\at2s_runs` 的同级目录或历史运行。
 - 不得读取 `evaluation.json`，因为其中含 `gold_sql`；评测后只看终端 `Summary` 和本次 `evaluation.csv`。
