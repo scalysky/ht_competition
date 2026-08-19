@@ -10,6 +10,9 @@ competition/
 ├─ with_at2s/
 │  ├─ dsv4f_full_benchmark.txt
 │  └─ minimax_m3_full_benchmark.txt
+├─ no_at2s/
+│  ├─ dsv4f_full_benchmark.txt
+│  └─ minimax_m3_full_benchmark.txt
 └─ no_skill/
    └─ 01_generate_sql.txt
 ```
@@ -78,9 +81,22 @@ C:\Code\Fin_tech_match\ht_competition\workspace\standard\eval_runs\competition\m
 - 如果权限窗口请求 `C:\Users\JO\AppData\Local\Temp\*`、另一模型目录或整个 `at2s_runs`，应拒绝并停止检查触发该请求的命令。
 - 不运行准备脚本、测试或目录搜索来“寻找”数据、知识库、题目或答案；所有输入均由提示词给出确切路径。
 
-## 无 Skill 基线
+## 基线实验
 
-`no_skill/01_generate_sql.txt` 是动态题目数量的生成模板。应在物理上不包含 `at2s`、`.knowledge` 和评测结果的独立目录运行。生成会话关闭后，再由人工调用评测脚本；不要让基线生成会话看到标准答案或评分结果。
+### 无 at2s 流程 Skill
+
+`no_at2s/` 下的提示词加载 `running-text2sql-no-at2s-benchmark`，由模型原生能力生成 SQL，然后校验、冻结并执行一次正式评测。它禁止加载 at2s 和读取 `.knowledge`，但仍使用一个只负责实验流程的 Skill。
+
+输出位于当前模型目录：
+
+```text
+generated/no_at2s/<run_name>/predictions.txt
+generated/no_at2s/<run_name>/generation_notes.md
+```
+
+### 完全无 Skill
+
+`no_skill/01_generate_sql.txt` 是动态题目数量的纯提示词模板。应在物理上不包含 `at2s`、`.knowledge` 和评测结果的独立目录运行。生成会话关闭后，再由人工调用评测脚本；不要让基线生成会话看到标准答案或评分结果。
 
 ## Git 注意事项
 

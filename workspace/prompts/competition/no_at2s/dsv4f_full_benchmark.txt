@@ -1,0 +1,12 @@
+请加载并执行 running-text2sql-no-at2s-benchmark skill。
+
+data_path=C:\Code\Fin_tech_match\ht_competition\01-金融大模型与智能体赛道-华泰证券-Agentic智能问数在客户营销场景的应用
+questions_path=workspace\dataset\Q&A100_questions.csv
+gold_path=workspace\dataset\Q&A100_answers.json
+run_name=dsv4f_no_at2s_qa100
+
+当前 OpenCode 必须已经从 C:\Code\Fin_tech_match\at2s_runs\dsv4f 启动。
+
+严格执行完整流程，不要加载任何其它 Skill，不要读取 at2s 或任何 .knowledge，不要中途询问或等待确认。先生成并校验全部 SQL；预测冻结后只执行一次正式评测。
+
+不得读取、打开、解析或计算 gold_path 的摘要，只能将解析后的绝对路径传给评测脚本。不得读取 evaluation.json；评测后只使用终端 Summary 和本次 evaluation.csv。
