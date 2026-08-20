@@ -1,0 +1,390 @@
+[
+  {
+    "id": 1,
+    "sql": "select count(*)\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.edu_cd = b.code and b.code_type_id='600' \r\nleft join dim_public c on a.gender_cd = c.code and c.code_type_id='500'\r\nwhere b.describe  in ('博士','硕士','学士') and c.describe in ('男')\r\nand a.cust_age>50 "
+  },
+  {
+    "id": 2,
+    "sql": "select case when cust_age<30 then '<30'\r\n     when cust_age>=30 and cust_age<50 then '[30,50)'\r\n     when cust_age>=50 and cust_age<60 then '[50,60)'\r\n     when cust_age>=60 then '[60,)'\r\n    end as cust_age_type\r\n  ,sum(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)) as aset \r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\ngroup by case when cust_age<30 then '<30'\r\n     when cust_age>=30 and cust_age<50 then '[30,50)'\r\n     when cust_age>=50 and cust_age<60 then '[50,60)'\r\n     when cust_age>=60 then '[60,)'\r\n    end;"
+  },
+  {
+    "id": 3,
+    "sql": "with custinfo as\r\n(select pty_id\r\nfrom ads_cust_info_d a \r\nleft join dim_public b on a.cust_lvl_cd=b.code and b.code_type_id='100'\r\nleft join dim_public c on a.gender_cd=c.code and c.code_type_id='500'\r\nwhere b.describe='紫金理财钻石卡客户' and c.describe in ('男')\r\nand a.cust_age>40\r\n),\r\nprdtinfo as\r\n(select a.pty_id,sum(a.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere b.prdt_name='比亚迪' and a.data_dt='20260331'\r\nand exists(select 1 from custinfo z where a.pty_id=z.pty_id)\r\ngroup by a.pty_id\r\nhaving sum(a.mkt_val)>1000\r\n)\r\nselect a.pty_id\r\n     ,coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset\r\n     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset\r\n     ,coalesce(d.aset_in,0) as aset_in\r\n     ,coalesce(d.aset_out,0) as aset_out\r\n     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)-coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)+coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft\r\nfrom prdtinfo a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'  --准确的话应该是20251231，暂时以20260101代替\r\nleft join \r\n(\r\nselect pty_id\r\n      ,sum(cash_in)+sum(tran_in)+sum(assign_in) as aset_in\r\n      ,sum(cash_out)+sum(tran_out)+sum(assign_out) as aset_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n) d on a.pty_id=d.pty_id;"
+  },
+  {
+    "id": 4,
+    "sql": "select b.up_org_name,b.org_name,a.prov_name,a.city_name,count(*) as cnt\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\ngroup by b.up_org_name,b.org_name,a.prov_name,a.city_name"
+  },
+  {
+    "id": 5,
+    "sql": "\r\nwith cust_tran as\r\n(\r\nselect pty_id,prdt_id,sum(buy_amt) as buy_tot,sum(sell_amt) as sell_tot \r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331' \r\nand prdt_id in (\r\nselect prdt_id from dim_product\r\nwhere prdt_name='招商银行' and prdt_type_name='A股'\r\n)\r\ngroup by pty_id,prdt_id\r\n)\r\nselect a.pty_id\r\nfrom cust_tran a\r\ninner join \r\n(\r\nselect a.*\r\nfrom dwd_cust_hold_d a\r\nwhere prdt_id in (select prdt_id from dim_product where prdt_name='中国平安' and prdt_type_name='A股')\r\nand a.data_dt='20260331' and a.sys_source='nm'\r\n) b on a.pty_id=b.pty_id\r\n"
+  },
+  {
+    "id": 6,
+    "sql": "with cust_avg_30 as \r\n(\r\nselect pty_id,round(sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1),2) as avg_aset\r\nfrom dws_cust_aset_d\r\ngroup by pty_id\r\nhaving sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1)>300000\r\n), cust_tran as\r\n(\r\nselect a.pty_id,sum(b.buy_amt)+sum(b.sell_amt) as tran_amt\r\nfrom dws_cust_aset_d a\r\nleft join dwd_cust_tran_d b on a.pty_id=b.pty_id and b.data_dt between '20260101' and '20260331'\r\ninner join dim_product c on b.prdt_id=c.prdt_id and c.up_prdt_type_id='PT040000'\r\ngroup by a.pty_id\r\nhaving sum(b.buy_amt)+sum(b.sell_amt)>100000\r\n)\r\nselect c.up_prdt_type_name,c.prdt_type_name,sum(mkt_val) as mkt_val\r\nfrom cust_tran a\r\ninner join dwd_cust_hold_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\ninner join dim_product c on b.prdt_id=c.prdt_id\r\ngroup by c.prdt_type_name,c.up_prdt_type_name\r\n;"
+  },
+  {
+    "id": 7,
+    "sql": "\r\nselect c.up_org_name,c.org_name,sum(b.tran_amt) as tran_amt\r\nfrom ads_cust_info_d a\r\ninner join \r\n(\r\nselect a.pty_id,sum(buy_amt)+sum(sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id and b.prdt_type_name='科创板'\r\nwhere a.data_dt between '20260110' and '20260215'\r\ngroup by a.pty_id\r\nhaving sum(buy_amt)+sum(sell_amt)>250000\r\n) b on a.pty_id=b.pty_id\r\nleft join dim_branch c on a.org_id=c.org_id\r\ngroup by c.up_org_name,c.org_name;"
+  },
+  {
+    "id": 8,
+    "sql": "select count(*) as cust_cnt\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531';"
+  },
+  {
+    "id": 9,
+    "sql": "select count(*) as cust_cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.gender_cd=b.code and b.code_type_id='500'\r\nwhere a.data_dt='20260531' and b.describe='男';"
+  },
+  {
+    "id": 10,
+    "sql": "select count(*) as cust_cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.gender_cd=b.code and b.code_type_id='500'\r\nwhere a.data_dt='20260531' and b.describe='女';"
+  },
+  {
+    "id": 11,
+    "sql": "select b.describe as gender, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.gender_cd=b.code and b.code_type_id='500'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;"
+  },
+  {
+    "id": 12,
+    "sql": "select b.describe as cust_lvl, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.cust_lvl_cd=b.code and b.code_type_id='100'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;"
+  },
+  {
+    "id": 13,
+    "sql": "select b.describe as edu, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.edu_cd=b.code and b.code_type_id='600'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;"
+  },
+  {
+    "id": 14,
+    "sql": "select prov_name, count(*) as cnt\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by prov_name\r\norder by cnt desc, prov_name;"
+  },
+  {
+    "id": 15,
+    "sql": "select round(avg(cust_age),1) as avg_age\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531';"
+  },
+  {
+    "id": 16,
+    "sql": "select prov_name, count(*) as cnt, round(avg(cust_age),1) as avg_age\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by prov_name\r\norder by cnt desc, prov_name;"
+  },
+  {
+    "id": 17,
+    "sql": "select name, cust_age, prov_name\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\norder by cust_age desc, name\r\nlimit 3;"
+  },
+  {
+    "id": 18,
+    "sql": "select count(distinct org_id) as org_cnt\r\nfrom dim_branch;"
+  },
+  {
+    "id": 19,
+    "sql": "select count(distinct up_org_id) as branch_cnt\r\nfrom dim_branch;"
+  },
+  {
+    "id": 20,
+    "sql": "select up_org_name, count(distinct org_id) as org_cnt\r\nfrom dim_branch\r\ngroup by up_org_name\r\norder by org_cnt desc, up_org_name;"
+  },
+  {
+    "id": 21,
+    "sql": "select b.describe as cust_status, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.cust_status=b.code and b.code_type_id='200'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;"
+  },
+  {
+    "id": 22,
+    "sql": "select count(*) as prdt_cnt\r\nfrom dim_product;"
+  },
+  {
+    "id": 23,
+    "sql": "select up_prdt_type_name, count(*) as prdt_cnt\r\nfrom dim_product\r\ngroup by up_prdt_type_name\r\norder by prdt_cnt desc;"
+  },
+  {
+    "id": 24,
+    "sql": "select count(*) as prdt_cnt\r\nfrom dim_product\r\nwhere prdt_type_name='A股';"
+  },
+  {
+    "id": 25,
+    "sql": "select count(*) as prdt_cnt\r\nfrom dim_product\r\nwhere prdt_type_name='ETF';"
+  },
+  {
+    "id": 26,
+    "sql": "select max(data_dt) as latest_dt\r\nfrom dwd_cust_hold_d;"
+  },
+  {
+    "id": 27,
+    "sql": "select count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331';"
+  },
+  {
+    "id": 28,
+    "sql": "select sum(mkt_val) as tot_mkt_val\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331';"
+  },
+  {
+    "id": 29,
+    "sql": "select ccy, count(*) as cnt\r\nfrom dwd_cust_hold_d\r\ngroup by ccy\r\norder by ccy;"
+  },
+  {
+    "id": 30,
+    "sql": "select count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331';"
+  },
+  {
+    "id": 31,
+    "sql": "select sum(buy_amt) as tot_buy_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331';"
+  },
+  {
+    "id": 32,
+    "sql": "select sum(sell_amt) as tot_sell_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331';"
+  },
+  {
+    "id": 33,
+    "sql": "select sum(nm_tot_aset) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331';"
+  },
+  {
+    "id": 34,
+    "sql": "select round(avg(nm_tot_aset),2) as avg_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331';"
+  },
+  {
+    "id": 35,
+    "sql": "select sum(cash_in) as tot_cash_in\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331';"
+  },
+  {
+    "id": 36,
+    "sql": "select count(distinct code_type_id) as type_cnt\r\nfrom dim_public;"
+  },
+  {
+    "id": 37,
+    "sql": "select b.describe as profession, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.prof_cd=b.code and b.code_type_id='700'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc\r\nlimit 10;"
+  },
+  {
+    "id": 38,
+    "sql": "select a.name, a.cust_age, b.org_name\r\nfrom ads_cust_info_d a\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nleft join dim_branch b on a.org_id=b.org_id\r\nwhere a.data_dt='20260531' and c.describe='紫金理财钻石卡客户'\r\norder by a.cust_age desc, a.pty_id;"
+  },
+  {
+    "id": 39,
+    "sql": "select c.describe as cust_lvl,\r\n       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nwhere a.data_dt='20260531'\r\ngroup by c.describe\r\norder by avg_aset desc nulls last;"
+  },
+  {
+    "id": 40,
+    "sql": "select c.describe as gender,\r\n       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_public c on a.gender_cd=c.code and c.code_type_id='500'\r\nwhere a.data_dt='20260531'\r\ngroup by c.describe\r\norder by gender;"
+  },
+  {
+    "id": 41,
+    "sql": "select c.describe as edu,\r\n       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_public c on a.edu_cd=c.code and c.code_type_id='600'\r\nwhere a.data_dt='20260531'\r\ngroup by c.describe\r\norder by avg_aset desc nulls last;"
+  },
+  {
+    "id": 42,
+    "sql": "select distinct a.pty_id\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere b.prdt_name='比亚迪' and b.prdt_type_name='A股'\r\n  and a.data_dt='20260331'\r\norder by pty_id;"
+  },
+  {
+    "id": 43,
+    "sql": "select c.up_prdt_type_name,\r\n       sum(a.mkt_val) as mkt_val,\r\n       count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product c on a.prdt_id=c.prdt_id\r\nwhere a.data_dt='20260331'\r\ngroup by c.up_prdt_type_name\r\norder by mkt_val desc nulls last;"
+  },
+  {
+    "id": 44,
+    "sql": "select b.org_name, count(*) as cnt\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\nwhere a.data_dt='20260531' and a.prov_name='江苏省'\r\ngroup by b.org_name\r\norder by cnt desc, b.org_name;"
+  },
+  {
+    "id": 45,
+    "sql": "select b.up_org_name, count(*) as cust_cnt, round(avg(a.cust_age),1) as avg_age\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\nwhere a.data_dt='20260531'\r\ngroup by b.up_org_name\r\norder by cust_cnt desc, b.up_org_name;"
+  },
+  {
+    "id": 46,
+    "sql": "select c.describe as profession, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public c on a.prof_cd=c.code and c.code_type_id='700'\r\nwhere a.data_dt='20260531'\r\n  and c.describe in ('公职 离/退休','非公职 离/退休')\r\ngroup by c.describe\r\norder by profession;"
+  },
+  {
+    "id": 47,
+    "sql": "select round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nwhere a.data_dt='20260531' and a.cust_age<30;"
+  },
+  {
+    "id": 48,
+    "sql": "select substring(data_dt,1,6) as mon,\r\n       sum(buy_amt) as buy_amt,\r\n       sum(sell_amt) as sell_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by substring(data_dt,1,6)\r\norder by mon;"
+  },
+  {
+    "id": 49,
+    "sql": "select c.describe as cust_lvl, count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_tran_d a\r\ninner join ads_cust_info_d b on a.pty_id=b.pty_id and b.data_dt='20260531'\r\nleft join dim_public c on b.cust_lvl_cd=c.code and c.code_type_id='100'\r\nwhere a.data_dt between '20260101' and '20260331'\r\ngroup by c.describe\r\norder by cust_cnt desc;"
+  },
+  {
+    "id": 50,
+    "sql": "select sum(mkt_val) as fc_mkt_val,\r\n       count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331' and sys_source='fc';"
+  },
+  {
+    "id": 51,
+    "sql": "select pty_id, sum(mkt_val) as hkd_mkt_val\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331' and ccy='2'\r\ngroup by pty_id\r\norder by hkd_mkt_val desc nulls last;"
+  },
+  {
+    "id": 52,
+    "sql": "select count(distinct a.pty_id) as cust_cnt,\r\n       sum(a.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_type_name='科创板';"
+  },
+  {
+    "id": 53,
+    "sql": "select count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_type_name='ETF';"
+  },
+  {
+    "id": 54,
+    "sql": "select count(*) as cnt,\r\n       round(count(*)*100.0/(select count(*) from ads_cust_info_d where data_dt='20260531'),2) as pct\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.edu_cd=b.code and b.code_type_id='600'\r\nwhere a.data_dt='20260531' and b.describe in ('硕士','博士');"
+  },
+  {
+    "id": 55,
+    "sql": "select prov_name, city_name, count(*) as cnt, round(avg(cust_age),1) as avg_age\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by prov_name, city_name\r\norder by cnt desc, prov_name, city_name;"
+  },
+  {
+    "id": 56,
+    "sql": "select pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331'\r\ngroup by pty_id\r\norder by prdt_cnt desc\r\n, pty_id\r\nlimit 10;"
+  },
+  {
+    "id": 57,
+    "sql": "select sys_source,\r\n       sum(buy_amt) as buy_amt,\r\n       sum(sell_amt) as sell_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by sys_source\r\norder by sys_source;"
+  },
+  {
+    "id": 58,
+    "sql": "select a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as tot_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\n  and coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)>1000000\r\norder by tot_aset desc;"
+  },
+  {
+    "id": 59,
+    "sql": "select count(*) as cust_cnt\r\nfrom\r\n(\r\nselect pty_id, sum(cash_in) as cash_in, sum(cash_out) as cash_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\nhaving sum(cash_out)>sum(cash_in)\r\n) t;"
+  },
+  {
+    "id": 60,
+    "sql": "select c.org_name,\r\n       sum(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)) as tot_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_branch c on a.org_id=c.org_id\r\nwhere a.data_dt='20260531'\r\ngroup by c.org_name\r\norder by tot_aset desc nulls last;"
+  },
+  {
+    "id": 61,
+    "sql": "select a.pty_id, sum(a.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_name='招商银行' and b.prdt_type_name='A股'\r\ngroup by a.pty_id\r\norder by mkt_val desc\r\nlimit 10;"
+  },
+  {
+    "id": 62,
+    "sql": "select case when cust_age<30 then '<30'\r\n            when cust_age>=30 and cust_age<50 then '[30,50)'\r\n            when cust_age>=50 and cust_age<60 then '[50,60)'\r\n            else '[60,)' end as age_grp,\r\n       count(*) as cnt\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by 1\r\norder by 1;"
+  },
+  {
+    "id": 63,
+    "sql": "select c.up_prdt_type_name,\r\n       sum(b.buy_amt)+sum(b.sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d b\r\ninner join dim_product c on b.prdt_id=c.prdt_id\r\nwhere b.data_dt between '20260101' and '20260331'\r\ngroup by c.up_prdt_type_name\r\norder by tran_amt desc nulls last;"
+  },
+  {
+    "id": 64,
+    "sql": "select round(avg(a.cust_age),1) as avg_age\r\nfrom ads_cust_info_d a\r\nwhere a.data_dt='20260531'\r\n  and exists(select 1 from dwd_cust_tran_d b\r\n             where b.pty_id=a.pty_id and b.sys_source='fc'\r\n               and b.data_dt between '20260101' and '20260331');"
+  },
+  {
+    "id": 65,
+    "sql": "select round(avg(t.prdt_cnt),1) as avg_prdt_cnt\r\nfrom ads_cust_info_d a\r\ninner join dim_public c on a.gender_cd=c.code and c.code_type_id='500'\r\ninner join\r\n(\r\nselect pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331'\r\ngroup by pty_id\r\n) t on a.pty_id=t.pty_id\r\nwhere a.data_dt='20260531' and c.describe='女';"
+  },
+  {
+    "id": 66,
+    "sql": "select pty_id,\r\n       coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\norder by tot_aset desc\r\nlimit 10;"
+  },
+  {
+    "id": 67,
+    "sql": "select substring(data_dt,1,6) as mon,\r\n       count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by substring(data_dt,1,6)\r\norder by mon;"
+  },
+  {
+    "id": 68,
+    "sql": "with fin as\r\n(\r\nselect pty_id,\r\n       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0)) as aset_in,\r\n       sum(coalesce(cash_out,0))+sum(coalesce(tran_out,0))+sum(coalesce(assign_out,0)) as aset_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset,\r\n       coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset,\r\n       coalesce(d.aset_in,0) as aset_in,\r\n       coalesce(d.aset_out,0) as aset_out,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)\r\n       -coalesce(c.nm_tot_aset,0)-coalesce(c.fc_pur_aset,0)\r\n       +coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft\r\nfrom (select distinct pty_id from dws_cust_aset_d where data_dt='20260331') a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'\r\nleft join fin d on a.pty_id=d.pty_id\r\norder by a.pty_id;"
+  },
+  {
+    "id": 69,
+    "sql": "select substring(data_dt,1,6) as mon,\r\n       sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0)) as tot_aset\r\nfrom dws_cust_aset_d\r\ngroup by substring(data_dt,1,6)\r\norder by mon;"
+  },
+  {
+    "id": 70,
+    "sql": "select a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset,\r\n       coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset\r\nfrom (select distinct pty_id from dws_cust_aset_d where data_dt='20260101') a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'\r\nwhere coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>0\r\n  and coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)\r\n     <(coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0))*0.9\r\norder by a.pty_id;"
+  },
+  {
+    "id": 71,
+    "sql": "select pty_id, count(distinct data_dt) as trade_days\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\norder by trade_days desc\r\n, pty_id\r\nlimit 10;"
+  },
+  {
+    "id": 72,
+    "sql": "select pty_id,\r\n       coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset,\r\n       rank() over(order by coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) desc) as rnk\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\norder by rnk\r\nlimit 20;"
+  },
+  {
+    "id": 73,
+    "sql": "with lvl as\r\n(\r\nselect a.pty_id, c.describe as cust_lvl\r\nfrom ads_cust_info_d a\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nwhere a.data_dt='20260531'\r\n),\r\ntran as\r\n(\r\nselect pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt, count(distinct data_dt) as trade_days\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect l.cust_lvl,\r\n       count(t.pty_id) as trade_cust_cnt,\r\n       round(avg(t.tran_amt),2) as avg_tran_amt,\r\n       round(avg(t.trade_days),1) as avg_trade_days\r\nfrom lvl l\r\nleft join tran t on l.pty_id=t.pty_id\r\ngroup by l.cust_lvl\r\norder by avg_tran_amt desc nulls last;"
+  },
+  {
+    "id": 74,
+    "sql": "with tot as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\n)\r\nselect a.pty_id, d.prdt_name, a.mkt_val, b.tot_aset,\r\n       round(a.mkt_val*100.0/nullif(b.tot_aset,0),2) as pct\r\nfrom dwd_cust_hold_d a\r\ninner join tot b on a.pty_id=b.pty_id\r\ninner join dim_product d on a.prdt_id=d.prdt_id\r\nwhere a.data_dt='20260331'\r\n  and a.mkt_val*100.0/nullif(b.tot_aset,0)>50\r\norder by pct desc, a.pty_id, d.prdt_name, a.mkt_val desc;"
+  },
+  {
+    "id": 75,
+    "sql": "with buy_q1 as\r\n(\r\nselect distinct a.prdt_id, a.pty_id\r\nfrom dwd_cust_tran_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id and b.up_prdt_type_id='PT040000'\r\nwhere a.data_dt between '20260101' and '20260331' and a.buy_amt>0\r\n)\r\nselect c.up_prdt_type_name, c.prdt_type_name,\r\n       count(distinct a.prdt_id) as prdt_cnt,\r\n       count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d a\r\ninner join buy_q1 b on a.prdt_id=b.prdt_id and a.pty_id=b.pty_id\r\ninner join dim_product c on a.prdt_id=c.prdt_id\r\nwhere a.data_dt='20260331'\r\ngroup by c.up_prdt_type_name, c.prdt_type_name\r\norder by cust_cnt desc;"
+  },
+  {
+    "id": 76,
+    "sql": "with bgn_hold as\r\n(\r\nselect distinct pty_id from dwd_cust_hold_d where data_dt='20260101'\r\n),\r\nend_hold as\r\n(\r\nselect distinct pty_id from dwd_cust_hold_d where data_dt='20260331'\r\n)\r\nselect count(*) as clear_cust_cnt\r\nfrom bgn_hold a\r\nwhere not exists(select 1 from end_hold b where a.pty_id=b.pty_id);"
+  },
+  {
+    "id": 77,
+    "sql": "select pty_id,\r\n       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0))\r\n      -sum(coalesce(cash_out,0))-sum(coalesce(tran_out,0))-sum(coalesce(assign_out,0)) as net_in\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\norder by net_in desc\r\nlimit 10;"
+  },
+  {
+    "id": 78,
+    "sql": "with cust_tran as\r\n(\r\nselect pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect b.up_org_name,\r\n       count(distinct a.pty_id) as cust_cnt,\r\n       sum(coalesce(t.tran_amt,0)) as tran_amt,\r\n       sum(coalesce(d.nm_tot_aset,0)+coalesce(d.fc_pur_aset,0)) as end_aset\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\nleft join cust_tran t on a.pty_id=t.pty_id\r\nleft join dws_cust_aset_d d on a.pty_id=d.pty_id and d.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\ngroup by b.up_org_name\r\norder by end_aset desc nulls last;"
+  },
+  {
+    "id": 79,
+    "sql": "select pty_id, sum(coalesce(buy_rake,0))+sum(coalesce(sell_rake,0)) as tot_rake\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\norder by tot_rake desc\r\nlimit 10;"
+  },
+  {
+    "id": 80,
+    "sql": "with aset as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\n),\r\ntran as\r\n(\r\nselect pty_id, sum(coalesce(buy_amt,0))+sum(coalesce(sell_amt,0)) as tran_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect a.pty_id, a.tot_aset, coalesce(t.tran_amt,0) as tran_amt\r\nfrom aset a\r\nleft join tran t on a.pty_id=t.pty_id\r\nwhere a.tot_aset>500000 and coalesce(t.tran_amt,0)<10000\r\norder by a.tot_aset desc;"
+  },
+  {
+    "id": 81,
+    "sql": "with tran_m as\r\n(\r\nselect pty_id,\r\n       max(case when substring(data_dt,1,6)='202601' then 1 else 0 end) as m1,\r\n       max(case when substring(data_dt,1,6)='202602' then 1 else 0 end) as m2,\r\n       max(case when substring(data_dt,1,6)='202603' then 1 else 0 end) as m3\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect count(*) as active_cust_cnt\r\nfrom tran_m\r\nwhere m1=0 and (m2=1 or m3=1);"
+  },
+  {
+    "id": 82,
+    "sql": "with bgn as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as aset\r\nfrom dws_cust_aset_d where data_dt='20260101'\r\n),\r\nendd as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as aset\r\nfrom dws_cust_aset_d where data_dt='20260331'\r\n)\r\nselect case when a.aset<100000 then '<10万'\r\n            when a.aset<500000 then '[10万,50万)'\r\n            else '50万以上' end as bgn_lvl,\r\n       case when b.aset<100000 then '<10万'\r\n            when b.aset<500000 then '[10万,50万)'\r\n            else '50万以上' end as end_lvl,\r\n       count(*) as cnt\r\nfrom bgn a\r\ninner join endd b on a.pty_id=b.pty_id\r\ngroup by 1,2\r\norder by 1,2;"
+  },
+  {
+    "id": 83,
+    "sql": "select case when a.cust_age<30 then '<30'\r\n            when a.cust_age>=30 and a.cust_age<50 then '[30,50)'\r\n            else '[50,)' end as age_grp,\r\n       c.up_prdt_type_name,\r\n       sum(b.mkt_val) as mkt_val\r\nfrom ads_cust_info_d a\r\ninner join dwd_cust_hold_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\ninner join dim_product c on b.prdt_id=c.prdt_id\r\nwhere a.data_dt='20260531'\r\ngroup by 1,2\r\norder by 1, mkt_val desc nulls last;"
+  },
+  {
+    "id": 84,
+    "sql": "with fin as\r\n(\r\nselect pty_id,\r\n       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0)) as aset_in,\r\n       sum(coalesce(cash_out,0))+sum(coalesce(tran_out,0))+sum(coalesce(assign_out,0)) as aset_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n),\r\npft as\r\n(\r\nselect a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)\r\n       -coalesce(c.nm_tot_aset,0)-coalesce(c.fc_pur_aset,0)\r\n       +coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft\r\nfrom (select distinct pty_id from dws_cust_aset_d where data_dt='20260331') a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'\r\nleft join fin d on a.pty_id=d.pty_id\r\n)\r\nselect case when aset_pft>0 then '盈利'\r\n            when aset_pft<0 then '亏损'\r\n            else '持平' end as pft_type,\r\n       count(*) as cust_cnt\r\nfrom pft\r\ngroup by 1\r\norder by 1;"
+  },
+  {
+    "id": 85,
+    "sql": "select a.pty_id,\r\n       sum(coalesce(b.buy_amt,0))+sum(coalesce(b.sell_amt,0)) as tran_amt\r\nfrom (select distinct pty_id\r\n      from dws_cust_fin_d\r\n      where data_dt between '20260101' and '20260331' and cash_in>500000) a\r\nleft join dwd_cust_tran_d b on a.pty_id=b.pty_id and b.data_dt between '20260101' and '20260331'\r\ngroup by a.pty_id\r\norder by tran_amt desc;"
+  },
+  {
+    "id": 86,
+    "sql": "with first_tran as\r\n(\r\nselect pty_id, min(data_dt) as first_dt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect substring(first_dt,1,6) as mon, count(*) as new_cust_cnt\r\nfrom first_tran\r\ngroup by 1\r\norder by 1;"
+  },
+  {
+    "id": 87,
+    "sql": "select b.org_name,\r\n       count(*) as cust_cnt,\r\n       sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end) as hv_cnt,\r\n       round(sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end)*100.0/count(*),2) as hv_pct\r\nfrom ads_cust_info_d a\r\nleft join dim_branch b on a.org_id=b.org_id\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\ngroup by b.org_name\r\nhaving sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end)>0\r\norder by hv_cnt desc, b.org_name;"
+  },
+  {
+    "id": 88,
+    "sql": "select b.prdt_name, b.prdt_type_name,\r\n       count(distinct a.pty_id) as holder_cnt,\r\n       sum(a.mkt_val) as tot_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331'\r\ngroup by b.prdt_name, b.prdt_type_name\r\norder by tot_val desc nulls last\r\nlimit 20;"
+  },
+  {
+    "id": 89,
+    "sql": "with tran as\r\n(\r\nselect pty_id, sum(buy_amt) as buy_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n),\r\naset as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\n)\r\nselect a.pty_id, t.buy_amt, a.tot_aset,\r\n       round(t.buy_amt/nullif(a.tot_aset,0),2) as turnover_ratio\r\nfrom tran t\r\ninner join aset a on t.pty_id=a.pty_id and a.tot_aset>0\r\norder by turnover_ratio desc\r\nlimit 10;"
+  },
+  {
+    "id": 90,
+    "sql": "with m_aset as\r\n(\r\nselect substring(data_dt,1,6) as mon,\r\n       sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0)) as tot_aset\r\nfrom dws_cust_aset_d\r\ngroup by substring(data_dt,1,6)\r\n)\r\nselect mon, round(tot_aset,2) as tot_aset,\r\n       round((tot_aset-lag(tot_aset) over(order by mon))*100.0\r\n             /nullif(lag(tot_aset) over(order by mon),0),2) as mom_pct\r\nfrom m_aset\r\norder by mon;"
+  },
+  {
+    "id": 91,
+    "sql": "with fc_cust as\r\n(\r\nselect distinct pty_id\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331' and sys_source='fc'\r\n)\r\nselect c.describe as cust_lvl,\r\n       count(*) as cust_cnt,\r\n       round(avg(a.cust_age),1) as avg_age,\r\n       round(avg(coalesce(d.nm_tot_aset,0)+coalesce(d.fc_pur_aset,0)),2) as avg_aset\r\nfrom fc_cust f\r\ninner join ads_cust_info_d a on f.pty_id=a.pty_id and a.data_dt='20260531'\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nleft join dws_cust_aset_d d on a.pty_id=d.pty_id and d.data_dt='20260331'\r\ngroup by c.describe\r\norder by cust_cnt desc;"
+  },
+  {
+    "id": 92,
+    "sql": "with hkd_cust as\r\n(\r\nselect distinct pty_id\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331' and ccy='2'\r\n)\r\nselect c.describe as cust_lvl,\r\n       count(*) as cnt,\r\n       round(avg(a.cust_age),1) as avg_age\r\nfrom hkd_cust h\r\ninner join ads_cust_info_d a on h.pty_id=a.pty_id and a.data_dt='20260531'\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\ngroup by c.describe\r\norder by cnt desc, cust_lvl;"
+  },
+  {
+    "id": 93,
+    "sql": "with bgn as\r\n(\r\nselect pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d where data_dt='20260101' group by pty_id\r\n),\r\nendd as\r\n(\r\nselect pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d where data_dt='20260331' group by pty_id\r\n)\r\nselect case when e.prdt_cnt>b.prdt_cnt then '增加'\r\n            when e.prdt_cnt=b.prdt_cnt then '不变'\r\n            else '减少' end as chg_type,\r\n       count(*) as cnt\r\nfrom bgn b\r\ninner join endd e on b.pty_id=e.pty_id\r\ngroup by 1\r\norder by chg_type;"
+  },
+  {
+    "id": 94,
+    "sql": "with kcb as\r\n(\r\nselect distinct a.pty_id\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_type_name='科创板'\r\n)\r\nselect case when k.pty_id is null then '未持有科创板' else '持有科创板' end as kcb_flag,\r\n       count(*) as cust_cnt,\r\n       round(avg(coalesce(t.nm_tot_aset,0)+coalesce(t.fc_pur_aset,0)),2) as avg_aset\r\nfrom dws_cust_aset_d t\r\nleft join kcb k on t.pty_id=k.pty_id\r\nwhere t.data_dt='20260331'\r\ngroup by 1\r\norder by kcb_flag;"
+  },
+  {
+    "id": 95,
+    "sql": "with tot as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d where data_dt='20260331'\r\n)\r\nselect case when t.tot_aset>1000000 then '高净值' else '普通' end as cust_grp,\r\n       c.up_prdt_type_name,\r\n       sum(h.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d h\r\ninner join tot t on h.pty_id=t.pty_id\r\ninner join dim_product c on h.prdt_id=c.prdt_id\r\nwhere h.data_dt='20260331'\r\ngroup by 1,2\r\norder by 1, mkt_val desc nulls last;"
+  },
+  {
+    "id": 96,
+    "sql": "with avg_aset as\r\n(\r\nselect pty_id, sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90 as avg_aset\r\nfrom dws_cust_aset_d\r\ngroup by pty_id\r\nhaving sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90>300000\r\n),\r\ntran as\r\n(\r\nselect pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect a.pty_id, round(a.avg_aset,2) as avg_aset, t.tran_amt\r\nfrom avg_aset a\r\nleft join tran t on a.pty_id=t.pty_id\r\norder by t.tran_amt desc nulls last\r\nlimit 10;"
+  },
+  {
+    "id": 97,
+    "sql": "with rake as\r\n(\r\nselect pty_id, sum(coalesce(buy_rake,0))+sum(coalesce(sell_rake,0)) as tot_rake\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n),\r\naset as\r\n(\r\nselect pty_id, sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90 as avg_aset\r\nfrom dws_cust_aset_d\r\ngroup by pty_id\r\n),\r\nscore as\r\n(\r\nselect coalesce(a.pty_id,r.pty_id) as pty_id,\r\n       coalesce(r.tot_rake,0) as tot_rake,\r\n       coalesce(a.avg_aset,0) as avg_aset,\r\n       rank() over(order by coalesce(r.tot_rake,0) desc) as rake_rank,\r\n       rank() over(order by coalesce(a.avg_aset,0) desc) as aset_rank\r\nfrom aset a\r\nfull join rake r on a.pty_id=r.pty_id\r\n)\r\nselect pty_id, tot_rake, round(avg_aset,2) as avg_aset, rake_rank, aset_rank,\r\n       rake_rank+aset_rank as total_rank\r\nfrom score\r\norder by total_rank, pty_id\r\nlimit 20;"
+  }
+]
