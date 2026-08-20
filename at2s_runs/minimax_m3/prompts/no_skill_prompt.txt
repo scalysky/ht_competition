@@ -1,0 +1,46 @@
+请不要加载或调用任何 Skill，也不要使用任何知识库。仅依据模型自身能力、指定的数据资料和只读 PostgreSQL，根据题目文件生成 PostgreSQL SQL。
+
+当前模型工作目录：
+
+C:\Code\Fin_tech_match\at2s_runs\minimax_m3
+
+数据资料目录：
+
+C:\Code\Fin_tech_match\ht_competition\01-金融大模型与智能体赛道-华泰证券-Agentic智能问数在客户营销场景的应用
+
+题目文件：
+
+C:\Code\Fin_tech_match\ht_competition\workspace\dataset\Q&A11-97_questions.csv
+
+输出目录：
+
+C:\Code\Fin_tech_match\at2s_runs\minimax_m3\generated\no_at2s\minimax_m3_no_at2s_qa11-97
+执行要求：
+
+1. 禁止加载或调用任何 Skill，包括 at2s、running-text2sql-benchmark 和 running-text2sql-no-at2s-benchmark。
+2. 禁止读取任何 .knowledge、architecture、correlation、troubleshooting 或其它知识库文件。
+3. 禁止读取 workspace\skills 目录中的内容。
+4. 禁止读取父目录、兄弟模型目录和其它模型工作目录。
+5. 只读取指定的 Q&A11-97_questions.csv。该文件必须只有“序号”和“问题”列。
+6. 禁止寻找或读取任何答案、Gold、Q&A.xlsx、合并了问题与 SQL 的 Q&A 文件、历史 predictions 或评测结果。
+7. 根据题目文件的实际内容确定题目数量 N，按文件顺序处理，不得写死题目数量。
+8. 如果题目为空、同一文件内编号重复、存在 SQL 或答案列，或者无法明确解析，立即停止并报告。
+9. 不要向我提问；业务口径不明确时采用最合理解释，并记录到 generation_notes.md。
+10. 可以读取数据资料目录顶层与8张目标表匹配的 CSV；不得递归搜索，每张表最多读取表头和100行样例，不得读取其它文件。
+11. 可以读取当前模型工作目录中的 .env，使用其中的 PostgreSQL 只读连接参数查看 public schema、字段类型、每表最多100行样例，以及码值字段最多100个去重值。
+12. 数据库查询必须设置 default_transaction_read_only=on、statement_timeout 和 search_path=public。
+13. PostgreSQL 只允许 SELECT 和只读 EXPLAIN；禁止执行本次生成的答案 SQL，禁止任何数据库写操作、DDL、COPY 和全表拉取。
+14. 每道题只生成一条 PostgreSQL SELECT 或 WITH ... SELECT，共 N 条，并保持题目顺序。
+15. predictions.txt 只能包含 SQL 和 N-1 行分隔线；每行分隔线必须独占一行且正好包含40个横线。
+16. predictions.txt 不得包含题号、解释、注释、文件名或 Markdown 代码围栏；文件开头和结尾不得放分隔线。
+17. generation_notes.md 必须记录题目文件绝对路径及 SHA-256、题目总数 N、候选表、业务口径、假设、推测关系和风险。
+18. 如果输出目录已经存在，不得读取或覆盖其中的历史结果；立即停止并报告需要更换输出目录。
+19. 本阶段只生成 SQL 和说明文件，不执行评分，不调用 run_text2sql.ps1。
+
+最终输出：
+
+C:\Code\Fin_tech_match\at2s_runs\minimax_m3\generated\no_at2s\minimax_m3_no_at2s_qa11-97\predictions.txt
+
+C:\Code\Fin_tech_match\at2s_runs\minimax_m3\generated\no_at2s\minimax_m3_no_at2s_qa11-97\generation_notes.md
+
+一次完成全部题目，不要中途暂停或等待确认。

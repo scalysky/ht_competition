@@ -1,0 +1,46 @@
+请使用当前 dsv4f 模型工作目录已经构建完成的知识库，根据题目文件生成 PostgreSQL SQL。
+
+当前模型工作目录：
+
+C:\Code\Fin_tech_match\at2s_runs\dsv4f
+
+知识库目录：
+
+C:\Code\Fin_tech_match\at2s_runs\dsv4f\workspace\skills\at2s\.knowledge
+
+数据资料目录：
+
+C:\Code\Fin_tech_match\ht_competition\01-金融大模型与智能体赛道-华泰证券-Agentic智能问数在客户营销场景的应用
+
+题目文件：
+
+C:\Code\Fin_tech_match\ht_competition\workspace\dataset\Q&A10_questions.csv
+
+输出目录：
+
+C:\Code\Fin_tech_match\at2s_runs\dsv4f\generated\with_at2s\qa10
+
+执行要求：
+
+1. 只使用当前 dsv4f 工作目录自己的知识库，不得读取其它模型目录或其它知识库。
+2. 只读取指定的 Q&A10_questions.csv。该文件必须只有“序号”和“问题”列；不得寻找或读取任何答案、Gold、Q&A.xlsx、合并 SQL 的 Q&A 文件或评测结果。
+3. 根据题目文件实际内容确定题目数量 N，按文件顺序处理，不得写死题目数量。
+4. 题目为空、同一文件内编号重复、存在 SQL/答案列或无法明确解析时，立即停止。
+5. 不要向我提问；业务口径不明确时采用最合理解释，并记录到 generation_notes.md。
+6. 可以读取数据资料目录顶层的8个目标 CSV，但每表最多读取100行，不得读取其它文件。
+7. 可以使用当前模型工作目录 .env 和只读 PostgreSQL 抽样字段、每表最多100行及最多100个码值；必须设置超时。
+8. PostgreSQL 只允许 SELECT 和只读 EXPLAIN，禁止执行生成的答案 SQL，禁止任何写操作。
+9. 不修改 architecture 下的表描述和 correlation.md，不创建或复制其它知识库。
+10. 每道题生成一条 PostgreSQL SELECT 或 WITH ... SELECT，共 N 条，保持题目顺序。
+11. predictions.txt 只能包含 SQL 和 N-1 行分隔线；分隔线必须独占一行且正好40个横线。
+12. predictions.txt 不得包含题号、解释、注释、文件名或 Markdown 代码围栏；开头和结尾不得放分隔线。
+13. generation_notes.md 记录题目文件绝对路径和 SHA-256、题目总数 N、候选表、业务口径、假设、推测关系和风险。
+14. 如果输出目录已经存在，不得读取或覆盖其中的历史结果；请停止并报告需要新的输出目录。
+15. 本阶段只生成 SQL 和说明文件，不执行评分，不调用 run_text2sql.ps1。
+
+最终输出：
+
+- generated/with_at2s/qa10/predictions.txt
+- generated/with_at2s/qa10/generation_notes.md
+
+一次完成全部题目，不要中途暂停或等待确认。

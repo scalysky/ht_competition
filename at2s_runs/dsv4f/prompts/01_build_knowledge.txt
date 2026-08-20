@@ -1,0 +1,56 @@
+请从零构建当前 dsv4f 模型工作目录的数据库知识库。
+
+当前模型工作目录：
+
+C:\Code\Fin_tech_match\at2s_runs\dsv4f
+
+知识库输出目录：
+
+C:\Code\Fin_tech_match\at2s_runs\dsv4f\workspace\skills\at2s\.knowledge
+
+数据资料目录：
+
+C:\Code\Fin_tech_match\ht_competition\01-金融大模型与智能体赛道-华泰证券-Agentic智能问数在客户营销场景的应用
+
+目标表：
+
+- ads_cust_info_d
+- dim_branch
+- dim_product
+- dim_public
+- dwd_cust_hold_d
+- dwd_cust_tran_d
+- dws_cust_aset_d
+- dws_cust_fin_d
+
+执行要求：
+
+1. 直接完成全部知识库构建，不要中途提问、暂停或等待确认。
+2. 当前知识库目录为空，允许创建缺失目录和目标文件。
+3. 只允许在指定知识库输出目录中写入知识库文件。
+4. 数据资料目录只能读取；只检查其顶层与8个目标表名前缀唯一匹配的 CSV，不递归。
+5. 禁止读取数据目录中的 Q&A.xlsx、Q&A*.csv、*_questions.csv、*_answers.*、表描述.sql 或其它非目标文件。
+6. 每个 CSV 只读取表头和最多100行样例，禁止整表加载。
+7. 使用当前模型工作目录 .env 中的 PostgreSQL 连接参数，通过 C:\Program Files\PostgreSQL\18\bin\psql.exe 只读抽样 public schema。
+8. 数据库账号已确认只读，不需要执行权限验证或写入测试。
+9. 数据库会话必须设置 default_transaction_read_only=on、statement_timeout 和 search_path=public。
+10. 只允许 SELECT 和只读 EXPLAIN；每次最多返回100行，码值字段最多查询100个去重值。
+11. 禁止数据库写入、DDL、COPY 和全表拉取。
+12. 不使用系统 %TEMP%；临时 SQL 只能写到当前模型工作目录 generated/.tmp/。
+13. 不得枚举、搜索或读取父目录、兄弟模型目录、其它模型工作区或其它知识库。
+14. 先完成全部8张表的自身描述，再统一分析表间关系。
+15. 每张表生成 workspace/skills/at2s/.knowledge/architecture/<表名>.md，至少包含“表描述”“字段”“数据特征”“待确认”。
+16. 字段表至少包含字段名、数据库类型、字段说明、示例或码值、来源；来源只能是“用户提供”或“数据推测”。
+17. 统一生成 workspace/skills/at2s/.knowledge/architecture/correlation.md，包含8表 Join 矩阵、关系明细和 SQL 使用注意事项。
+18. 未经人工确认的字段含义和表间关系一律标记为“数据推测”或“推测”，不得标记为已确认。
+19. 任一目标 CSV 缺失、匹配多个文件或数据库抽样失败时，立即停止并报告，不得凭表名编造。
+20. 完成后检查8个表文件和 correlation.md 均存在、非空且结构完整。
+
+最终只汇报：
+
+- 实际生成的知识库文件；
+- 每张表匹配的 CSV；
+- 数据库结构查询和抽样是否成功；
+- 推测出的表间关系；
+- 待人工确认的字段和关系；
+- 最终完整性检查结果。

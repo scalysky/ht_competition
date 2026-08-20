@@ -1,0 +1,2375 @@
+{
+  "metadata": {
+    "generated_at": "2026-08-19T08:42:51.727295+00:00",
+    "dialect": "PostgreSQL",
+    "metrics": [
+      "em",
+      "ex",
+      "rves"
+    ],
+    "gold_path": "C:\\Code\\Fin_tech_match\\ht_competition\\workspace\\dataset\\Q&A100_answers.json",
+    "predictions_path": "C:\\Code\\Fin_tech_match\\at2s_runs\\minimax_m3\\generated\\with_at2s\\qa100\\predictions.txt",
+    "predictions_format": "txt",
+    "result_comparison": {
+      "row_order": "ignored_by_default",
+      "duplicates": "ignored_by_default",
+      "column_order": "preserved"
+    },
+    "rves": {
+      "iterations": 5,
+      "warmups": 1,
+      "timing_source": "PostgreSQL EXPLAIN ANALYZE Execution Time",
+      "identity": {
+        "user": "read",
+        "database": "fintech_utf8",
+        "read_only": "on",
+        "statement_timeout": "30s"
+      }
+    }
+  },
+  "summary": {
+    "total": 97,
+    "em_correct": 1,
+    "em": 1.0309,
+    "ex_correct": 49,
+    "ex": 50.5155,
+    "rves": 46.702,
+    "empty_result_matches": 0,
+    "prediction_errors": 0,
+    "missing_prediction_ids": [],
+    "extra_prediction_ids": []
+  },
+  "cases": [
+    {
+      "id": "1",
+      "question": "",
+      "gold_sql": "select count(*)\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.edu_cd = b.code and b.code_type_id='600' \r\nleft join dim_public c on a.gender_cd = c.code and c.code_type_id='500'\r\nwhere b.describe  in ('博士','硕士','学士') and c.describe in ('男')\r\nand a.cust_age>50 ",
+      "predicted_sql": "SELECT COUNT(*) AS cust_count\nFROM ads_cust_info_d\nWHERE gender_cd = '5000002'\n  AND cust_age > 50\n  AND edu_cd IN ('6000002', '6000003', '6000004');",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 2.576144,
+        "reward": 1.25,
+        "score": 111.8034,
+        "gold_mean_ms": 0.9546,
+        "predicted_mean_ms": 0.51,
+        "ratios": [
+          2.416667,
+          2.773639,
+          3.117647,
+          3.990196,
+          0.582573
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "2",
+      "question": "",
+      "gold_sql": "select case when cust_age<30 then '<30'\r\n     when cust_age>=30 and cust_age<50 then '[30,50)'\r\n     when cust_age>=50 and cust_age<60 then '[50,60)'\r\n     when cust_age>=60 then '[60,)'\r\n    end as cust_age_type\r\n  ,sum(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)) as aset \r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\ngroup by case when cust_age<30 then '<30'\r\n     when cust_age>=30 and cust_age<50 then '[30,50)'\r\n     when cust_age>=50 and cust_age<60 then '[50,60)'\r\n     when cust_age>=60 then '[60,)'\r\n    end;",
+      "predicted_sql": "SELECT\n  CASE\n    WHEN a.cust_age < 30 THEN '<30'\n    WHEN a.cust_age < 50 THEN '[30,50)'\n    WHEN a.cust_age < 60 THEN '[50,60)'\n    ELSE '60+'\n  END AS age_group,\n  COUNT(DISTINCT a.pty_id) AS cust_count,\n  SUM(s.nm_tot_aset + s.fc_pur_aset) AS total_asset,\n  AVG(s.nm_tot_aset + s.fc_pur_aset) AS avg_asset\nFROM ads_cust_info_d a\nJOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\nWHERE s.data_dt = '20260331'\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "3",
+      "question": "",
+      "gold_sql": "with custinfo as\r\n(select pty_id\r\nfrom ads_cust_info_d a \r\nleft join dim_public b on a.cust_lvl_cd=b.code and b.code_type_id='100'\r\nleft join dim_public c on a.gender_cd=c.code and c.code_type_id='500'\r\nwhere b.describe='紫金理财钻石卡客户' and c.describe in ('男')\r\nand a.cust_age>40\r\n),\r\nprdtinfo as\r\n(select a.pty_id,sum(a.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere b.prdt_name='比亚迪' and a.data_dt='20260331'\r\nand exists(select 1 from custinfo z where a.pty_id=z.pty_id)\r\ngroup by a.pty_id\r\nhaving sum(a.mkt_val)>1000\r\n)\r\nselect a.pty_id\r\n     ,coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset\r\n     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset\r\n     ,coalesce(d.aset_in,0) as aset_in\r\n     ,coalesce(d.aset_out,0) as aset_out\r\n     ,coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)-coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)+coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft\r\nfrom prdtinfo a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'  --准确的话应该是20251231，暂时以20260101代替\r\nleft join \r\n(\r\nselect pty_id\r\n      ,sum(cash_in)+sum(tran_in)+sum(assign_in) as aset_in\r\n      ,sum(cash_out)+sum(tran_out)+sum(assign_out) as aset_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n) d on a.pty_id=d.pty_id;",
+      "predicted_sql": "WITH byd_holders AS (\n  SELECT h.pty_id\n  FROM dwd_cust_hold_d h\n  JOIN dim_product p ON h.prdt_id = p.prdt_id\n  WHERE p.prdt_name LIKE '%比亚迪%'\n    AND p.up_prdt_type_id = 'PT040000'\n    AND h.data_dt = '20260331'\n  GROUP BY h.pty_id\n  HAVING SUM(h.mkt_val) > 1000\n)\nSELECT\n  t.pty_id,\n  SUM(t.sell_amt - t.buy_amt) AS realized_pnl\nFROM dwd_cust_tran_d t\nJOIN ads_cust_info_d a ON t.pty_id = a.pty_id\nJOIN byd_holders b ON t.pty_id = b.pty_id\nWHERE a.cust_lvl_cd = '1000006'\n  AND a.gender_cd = '5000002'\n  AND a.cust_age > 40\n  AND t.data_dt BETWEEN '20260101' AND '20260331'\nGROUP BY t.pty_id\nORDER BY t.pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 0,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "4",
+      "question": "",
+      "gold_sql": "select b.up_org_name,b.org_name,a.prov_name,a.city_name,count(*) as cnt\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\ngroup by b.up_org_name,b.org_name,a.prov_name,a.city_name",
+      "predicted_sql": "SELECT\n  b.up_org_name AS fen_gong_si,\n  b.org_name AS ying_ye_bu,\n  a.prov_name AS sheng_fen,\n  COUNT(*) AS kehu_shu\nFROM ads_cust_info_d a\nJOIN dim_branch b ON a.org_id = b.org_id\nWHERE b.org_name LIKE '%营业部%'\nGROUP BY b.up_org_name, b.org_name, a.prov_name\nORDER BY b.up_org_name, b.org_name, kehu_shu DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 15,
+      "predicted_row_count": 15,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "5",
+      "question": "",
+      "gold_sql": "\r\nwith cust_tran as\r\n(\r\nselect pty_id,prdt_id,sum(buy_amt) as buy_tot,sum(sell_amt) as sell_tot \r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331' \r\nand prdt_id in (\r\nselect prdt_id from dim_product\r\nwhere prdt_name='招商银行' and prdt_type_name='A股'\r\n)\r\ngroup by pty_id,prdt_id\r\n)\r\nselect a.pty_id\r\nfrom cust_tran a\r\ninner join \r\n(\r\nselect a.*\r\nfrom dwd_cust_hold_d a\r\nwhere prdt_id in (select prdt_id from dim_product where prdt_name='中国平安' and prdt_type_name='A股')\r\nand a.data_dt='20260331' and a.sys_source='nm'\r\n) b on a.pty_id=b.pty_id\r\n",
+      "predicted_sql": "SELECT DISTINCT pty_id\nFROM (\n  SELECT DISTINCT t.pty_id\n  FROM dwd_cust_tran_d t\n  JOIN dim_product p ON t.prdt_id = p.prdt_id\n  WHERE p.prdt_name LIKE '%招商银行%'\n    AND p.up_prdt_type_id = 'PT040000'\n    AND t.data_dt BETWEEN '20260101' AND '20260331'\n  INTERSECT\n  SELECT DISTINCT h.pty_id\n  FROM dwd_cust_hold_d h\n  JOIN dim_product p ON h.prdt_id = p.prdt_id\n  WHERE p.prdt_name LIKE '%中国平安%'\n    AND p.up_prdt_type_id = 'PT040000'\n    AND h.data_dt = '20260331'\n    AND h.sys_source = 'nm'\n) AS matched\nORDER BY pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.858311,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 146.7498,
+        "predicted_mean_ms": 170.9766,
+        "ratios": [
+          0.884099,
+          0.863363,
+          0.855978,
+          0.836385,
+          0.851732
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "6",
+      "question": "",
+      "gold_sql": "with cust_avg_30 as \r\n(\r\nselect pty_id,round(sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1),2) as avg_aset\r\nfrom dws_cust_aset_d\r\ngroup by pty_id\r\nhaving sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/((to_date('20260331','yyyymmdd')-to_date('20260101','yyyymmdd'))::integer+1)>300000\r\n), cust_tran as\r\n(\r\nselect a.pty_id,sum(b.buy_amt)+sum(b.sell_amt) as tran_amt\r\nfrom dws_cust_aset_d a\r\nleft join dwd_cust_tran_d b on a.pty_id=b.pty_id and b.data_dt between '20260101' and '20260331'\r\ninner join dim_product c on b.prdt_id=c.prdt_id and c.up_prdt_type_id='PT040000'\r\ngroup by a.pty_id\r\nhaving sum(b.buy_amt)+sum(b.sell_amt)>100000\r\n)\r\nselect c.up_prdt_type_name,c.prdt_type_name,sum(mkt_val) as mkt_val\r\nfrom cust_tran a\r\ninner join dwd_cust_hold_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\ninner join dim_product c on b.prdt_id=c.prdt_id\r\ngroup by c.prdt_type_name,c.up_prdt_type_name\r\n;",
+      "predicted_sql": "WITH cust_match AS (\n  SELECT s.pty_id\n  FROM dws_cust_aset_d s\n  WHERE s.data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY s.pty_id\n  HAVING AVG(s.nm_tot_aset) > 300000\n  INTERSECT\n  SELECT t.pty_id\n  FROM dwd_cust_tran_d t\n  JOIN dim_product p ON t.prdt_id = p.prdt_id\n  WHERE p.up_prdt_type_id = 'PT040000'\n    AND t.data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY t.pty_id\n  HAVING SUM(t.buy_amt + t.sell_amt) > 100000\n)\nSELECT DISTINCT p.up_prdt_type_name\nFROM cust_match c\nJOIN dwd_cust_hold_d h ON c.pty_id = h.pty_id\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\nORDER BY p.up_prdt_type_name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 25,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "7",
+      "question": "",
+      "gold_sql": "\r\nselect c.up_org_name,c.org_name,sum(b.tran_amt) as tran_amt\r\nfrom ads_cust_info_d a\r\ninner join \r\n(\r\nselect a.pty_id,sum(buy_amt)+sum(sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id and b.prdt_type_name='科创板'\r\nwhere a.data_dt between '20260110' and '20260215'\r\ngroup by a.pty_id\r\nhaving sum(buy_amt)+sum(sell_amt)>250000\r\n) b on a.pty_id=b.pty_id\r\nleft join dim_branch c on a.org_id=c.org_id\r\ngroup by c.up_org_name,c.org_name;",
+      "predicted_sql": "WITH cust_kechuang AS (\n  SELECT t.pty_id\n  FROM dwd_cust_tran_d t\n  JOIN dim_product p ON t.prdt_id = p.prdt_id\n  WHERE p.sor_prdt_id LIKE '688%'\n    AND t.data_dt BETWEEN '20260110' AND '20260215'\n  GROUP BY t.pty_id\n  HAVING SUM(t.buy_amt + t.sell_amt) > 250000\n)\nSELECT\n  b.org_name AS ying_ye_bu,\n  COUNT(DISTINCT c.pty_id) AS kehu_shu\nFROM cust_kechuang c\nJOIN ads_cust_info_d a ON c.pty_id = a.pty_id\nJOIN dim_branch b ON a.org_id = b.org_id\nGROUP BY b.org_name\nORDER BY kehu_shu DESC, b.org_name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "8",
+      "question": "",
+      "gold_sql": "select count(*) as cust_cnt\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531';",
+      "predicted_sql": "SELECT COUNT(DISTINCT pty_id) AS cust_count FROM ads_cust_info_d;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.330602,
+        "reward": 0.5,
+        "score": 70.7107,
+        "gold_mean_ms": 0.1988,
+        "predicted_mean_ms": 0.6278,
+        "ratios": [
+          0.599613,
+          0.23036,
+          0.304419,
+          0.284034,
+          0.234586
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "9",
+      "question": "",
+      "gold_sql": "select count(*) as cust_cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.gender_cd=b.code and b.code_type_id='500'\r\nwhere a.data_dt='20260531' and b.describe='男';",
+      "predicted_sql": "SELECT COUNT(*) AS cust_count FROM ads_cust_info_d WHERE gender_cd = '5000002';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.894022,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 0.5298,
+        "predicted_mean_ms": 0.2738,
+        "ratios": [
+          1.109215,
+          3.539432,
+          1.431655,
+          2.057778,
+          1.332031
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "10",
+      "question": "",
+      "gold_sql": "select count(*) as cust_cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.gender_cd=b.code and b.code_type_id='500'\r\nwhere a.data_dt='20260531' and b.describe='女';",
+      "predicted_sql": "SELECT COUNT(*) AS cust_count FROM ads_cust_info_d WHERE gender_cd = '5000003';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 2.212228,
+        "reward": 1.25,
+        "score": 111.8034,
+        "gold_mean_ms": 0.4596,
+        "predicted_mean_ms": 0.2148,
+        "ratios": [
+          1.795349,
+          2.640625,
+          2.50838,
+          1.365591,
+          2.751196
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "11",
+      "question": "",
+      "gold_sql": "select b.describe as gender, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.gender_cd=b.code and b.code_type_id='500'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;",
+      "predicted_sql": "SELECT\n  CASE WHEN gender_cd = '5000002' THEN '男' WHEN gender_cd = '5000003' THEN '女' ELSE '其他' END AS gender,\n  COUNT(*) AS cust_count\nFROM ads_cust_info_d\nGROUP BY 1\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.229623,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 0.607,
+        "predicted_mean_ms": 0.5892,
+        "ratios": [
+          0.404332,
+          1.210396,
+          0.855856,
+          1.443155,
+          2.234375
+        ]
+      },
+      "gold_row_count": 2,
+      "predicted_row_count": 2,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "12",
+      "question": "",
+      "gold_sql": "select b.describe as cust_lvl, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.cust_lvl_cd=b.code and b.code_type_id='100'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;",
+      "predicted_sql": "SELECT cust_lvl_cd, COUNT(*) AS cust_count\nFROM ads_cust_info_d\nGROUP BY cust_lvl_cd\nORDER BY cust_lvl_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 6,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "13",
+      "question": "",
+      "gold_sql": "select b.describe as edu, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.edu_cd=b.code and b.code_type_id='600'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;",
+      "predicted_sql": "SELECT edu_cd, COUNT(*) AS cust_count\nFROM ads_cust_info_d\nGROUP BY edu_cd\nORDER BY edu_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 7,
+      "predicted_row_count": 7,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "14",
+      "question": "",
+      "gold_sql": "select prov_name, count(*) as cnt\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by prov_name\r\norder by cnt desc, prov_name;",
+      "predicted_sql": "SELECT prov_name, COUNT(*) AS cust_count\nFROM ads_cust_info_d\nGROUP BY prov_name\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.270984,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 0.6052,
+        "predicted_mean_ms": 0.5086,
+        "ratios": [
+          0.787013,
+          0.948854,
+          2.761021,
+          1.228507,
+          0.629526
+        ]
+      },
+      "gold_row_count": 8,
+      "predicted_row_count": 8,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "15",
+      "question": "",
+      "gold_sql": "select round(avg(cust_age),1) as avg_age\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531';",
+      "predicted_sql": "SELECT AVG(cust_age) AS avg_age FROM ads_cust_info_d;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "16",
+      "question": "",
+      "gold_sql": "select prov_name, count(*) as cnt, round(avg(cust_age),1) as avg_age\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by prov_name\r\norder by cnt desc, prov_name;",
+      "predicted_sql": "SELECT prov_name, COUNT(*) AS cust_count, AVG(cust_age) AS avg_age\nFROM ads_cust_info_d\nGROUP BY prov_name\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 8,
+      "predicted_row_count": 8,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "17",
+      "question": "",
+      "gold_sql": "select name, cust_age, prov_name\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\norder by cust_age desc, name\r\nlimit 3;",
+      "predicted_sql": "SELECT name, cust_age, prov_name\nFROM ads_cust_info_d\nORDER BY cust_age DESC\nLIMIT 3;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.791902,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 0.391,
+        "predicted_mean_ms": 0.5586,
+        "ratios": [
+          0.909502,
+          0.741425,
+          0.516917,
+          0.537644,
+          1.254019
+        ]
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "18",
+      "question": "",
+      "gold_sql": "select count(distinct org_id) as org_cnt\r\nfrom dim_branch;",
+      "predicted_sql": "SELECT COUNT(*) AS branch_count\nFROM dim_branch\nWHERE org_name LIKE '%营业部%';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "19",
+      "question": "",
+      "gold_sql": "select count(distinct up_org_id) as branch_cnt\r\nfrom dim_branch;",
+      "predicted_sql": "SELECT COUNT(DISTINCT up_org_name) AS sub_company_count\nFROM dim_branch\nWHERE up_org_name IS NOT NULL;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.838076,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 0.8228,
+        "predicted_mean_ms": 0.5428,
+        "ratios": [
+          1.321321,
+          1.076503,
+          5.092417,
+          0.387487,
+          1.312649
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "20",
+      "question": "",
+      "gold_sql": "select up_org_name, count(distinct org_id) as org_cnt\r\nfrom dim_branch\r\ngroup by up_org_name\r\norder by org_cnt desc, up_org_name;",
+      "predicted_sql": "SELECT up_org_name, COUNT(*) AS branch_count\nFROM dim_branch\nWHERE org_name LIKE '%营业部%'\nGROUP BY up_org_name\nORDER BY branch_count DESC, up_org_name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 27,
+      "predicted_row_count": 26,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "21",
+      "question": "",
+      "gold_sql": "select b.describe as cust_status, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.cust_status=b.code and b.code_type_id='200'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc;",
+      "predicted_sql": "SELECT cust_status, COUNT(*) AS cust_count\nFROM ads_cust_info_d\nGROUP BY cust_status\nORDER BY cust_status;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "22",
+      "question": "",
+      "gold_sql": "select count(*) as prdt_cnt\r\nfrom dim_product;",
+      "predicted_sql": "SELECT COUNT(*) AS prdt_count FROM dim_product;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.020218,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 33.8292,
+        "predicted_mean_ms": 33.1742,
+        "ratios": [
+          1.067739,
+          1.006773,
+          0.994829,
+          0.991915,
+          1.039834
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "23",
+      "question": "",
+      "gold_sql": "select up_prdt_type_name, count(*) as prdt_cnt\r\nfrom dim_product\r\ngroup by up_prdt_type_name\r\norder by prdt_cnt desc;",
+      "predicted_sql": "SELECT up_prdt_type_id, up_prdt_type_name, COUNT(*) AS prdt_count\nFROM dim_product\nGROUP BY up_prdt_type_id, up_prdt_type_name\nORDER BY up_prdt_type_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 12,
+      "predicted_row_count": 13,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "24",
+      "question": "",
+      "gold_sql": "select count(*) as prdt_cnt\r\nfrom dim_product\r\nwhere prdt_type_name='A股';",
+      "predicted_sql": "SELECT COUNT(*) AS ashare_count\nFROM dim_product\nWHERE prdt_type_id = 'PT040100';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.973627,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 49.5808,
+        "predicted_mean_ms": 50.9286,
+        "ratios": [
+          0.972249,
+          0.984502,
+          0.974344,
+          0.966849,
+          0.970189
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "25",
+      "question": "",
+      "gold_sql": "select count(*) as prdt_cnt\r\nfrom dim_product\r\nwhere prdt_type_name='ETF';",
+      "predicted_sql": "SELECT COUNT(*) AS etf_count\nFROM dim_product\nWHERE prdt_type_name = 'ETF';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.997052,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 48.3172,
+        "predicted_mean_ms": 48.4614,
+        "ratios": [
+          0.99536,
+          0.998937,
+          1.017563,
+          0.98341,
+          0.989989
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "26",
+      "question": "",
+      "gold_sql": "select max(data_dt) as latest_dt\r\nfrom dwd_cust_hold_d;",
+      "predicted_sql": "SELECT MAX(data_dt) AS latest_dt FROM dwd_cust_hold_d;",
+      "prediction_present": true,
+      "em": 1,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.996436,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 62.0242,
+        "predicted_mean_ms": 62.2428,
+        "ratios": [
+          0.965077,
+          1.034101,
+          1.011135,
+          0.995162,
+          0.976704
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "27",
+      "question": "",
+      "gold_sql": "select count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331';",
+      "predicted_sql": "SELECT COUNT(DISTINCT pty_id) AS hold_cust_count\nFROM dwd_cust_hold_d\nWHERE data_dt = '20260331';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.004831,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 50.1208,
+        "predicted_mean_ms": 49.8996,
+        "ratios": [
+          0.999403,
+          0.954269,
+          0.997555,
+          1.065256,
+          1.007673
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "28",
+      "question": "",
+      "gold_sql": "select sum(mkt_val) as tot_mkt_val\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331';",
+      "predicted_sql": "SELECT SUM(mkt_val) AS total_mkt_val\nFROM dwd_cust_hold_d\nWHERE data_dt = '20260331';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.006089,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 47.3594,
+        "predicted_mean_ms": 47.0822,
+        "ratios": [
+          1.028793,
+          0.979954,
+          1.021178,
+          0.989301,
+          1.011217
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "29",
+      "question": "",
+      "gold_sql": "select ccy, count(*) as cnt\r\nfrom dwd_cust_hold_d\r\ngroup by ccy\r\norder by ccy;",
+      "predicted_sql": "SELECT ccy, COUNT(*) AS record_count\nFROM dwd_cust_hold_d\nGROUP BY ccy\nORDER BY ccy;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.003429,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 97.032,
+        "predicted_mean_ms": 96.7026,
+        "ratios": [
+          1.016775,
+          0.994741,
+          1.011792,
+          0.997409,
+          0.996426
+        ]
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "30",
+      "question": "",
+      "gold_sql": "select count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331';",
+      "predicted_sql": "SELECT COUNT(DISTINCT pty_id) AS active_cust_count\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331'\n  AND (buy_amt > 0 OR sell_amt > 0);",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.806461,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 21.4546,
+        "predicted_mean_ms": 26.727,
+        "ratios": [
+          0.782088,
+          0.742796,
+          0.812236,
+          0.921807,
+          0.77338
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "31",
+      "question": "",
+      "gold_sql": "select sum(buy_amt) as tot_buy_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331';",
+      "predicted_sql": "SELECT SUM(buy_amt) AS total_buy_amt\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.052671,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 11.7634,
+        "predicted_mean_ms": 11.181,
+        "ratios": [
+          1.183756,
+          0.976464,
+          0.888398,
+          1.03543,
+          1.179306
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "32",
+      "question": "",
+      "gold_sql": "select sum(sell_amt) as tot_sell_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331';",
+      "predicted_sql": "SELECT SUM(sell_amt) AS total_sell_amt\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.977508,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 13.2374,
+        "predicted_mean_ms": 13.6456,
+        "ratios": [
+          1.02938,
+          0.886697,
+          0.782249,
+          1.046188,
+          1.143023
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "33",
+      "question": "",
+      "gold_sql": "select sum(nm_tot_aset) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331';",
+      "predicted_sql": "SELECT SUM(nm_tot_aset) AS total_nm_asset\nFROM dws_cust_aset_d\nWHERE data_dt = '20260331';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.987769,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 4.3574,
+        "predicted_mean_ms": 4.423,
+        "ratios": [
+          1.09567,
+          1.036441,
+          0.985312,
+          0.913951,
+          0.90747
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "34",
+      "question": "",
+      "gold_sql": "select round(avg(nm_tot_aset),2) as avg_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331';",
+      "predicted_sql": "SELECT AVG(nm_tot_aset) AS avg_nm_asset\nFROM dws_cust_aset_d\nWHERE data_dt = '20260331';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "35",
+      "question": "",
+      "gold_sql": "select sum(cash_in) as tot_cash_in\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331';",
+      "predicted_sql": "SELECT SUM(cash_in) AS total_cash_in\nFROM dws_cust_fin_d\nWHERE data_dt BETWEEN '20260101' AND '20260331';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.984405,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 1.5182,
+        "predicted_mean_ms": 1.5446,
+        "ratios": [
+          1.086815,
+          0.906806,
+          0.963439,
+          0.871483,
+          1.093483
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "36",
+      "question": "",
+      "gold_sql": "select count(distinct code_type_id) as type_cnt\r\nfrom dim_public;",
+      "predicted_sql": "SELECT COUNT(DISTINCT code_type_id) AS dict_type_count FROM dim_public;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.702202,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 0.358,
+        "predicted_mean_ms": 0.7864,
+        "ratios": [
+          0.239542,
+          1.217712,
+          0.929919,
+          0.625755,
+          0.498084
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "37",
+      "question": "",
+      "gold_sql": "select b.describe as profession, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.prof_cd=b.code and b.code_type_id='700'\r\nwhere a.data_dt='20260531'\r\ngroup by b.describe\r\norder by cnt desc\r\nlimit 10;",
+      "predicted_sql": "SELECT prof_cd, COUNT(*) AS cust_count\nFROM ads_cust_info_d\nGROUP BY prof_cd\nORDER BY cust_count DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "38",
+      "question": "",
+      "gold_sql": "select a.name, a.cust_age, b.org_name\r\nfrom ads_cust_info_d a\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nleft join dim_branch b on a.org_id=b.org_id\r\nwhere a.data_dt='20260531' and c.describe='紫金理财钻石卡客户'\r\norder by a.cust_age desc, a.pty_id;",
+      "predicted_sql": "SELECT a.name, a.cust_age, b.org_name\nFROM ads_cust_info_d a\nLEFT JOIN dim_branch b ON a.org_id = b.org_id\nWHERE a.cust_lvl_cd = '1000006'\nORDER BY a.name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 30,
+      "predicted_row_count": 65,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "39",
+      "question": "",
+      "gold_sql": "select c.describe as cust_lvl,\r\n       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nwhere a.data_dt='20260531'\r\ngroup by c.describe\r\norder by avg_aset desc nulls last;",
+      "predicted_sql": "SELECT a.cust_lvl_cd,\n       AVG(s.nm_tot_aset + s.fc_pur_aset) AS avg_total_asset\nFROM ads_cust_info_d a\nJOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\nWHERE s.data_dt = '20260331'\nGROUP BY a.cust_lvl_cd\nORDER BY a.cust_lvl_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 6,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "40",
+      "question": "",
+      "gold_sql": "select c.describe as gender,\r\n       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_public c on a.gender_cd=c.code and c.code_type_id='500'\r\nwhere a.data_dt='20260531'\r\ngroup by c.describe\r\norder by gender;",
+      "predicted_sql": "SELECT\n  CASE WHEN a.gender_cd = '5000002' THEN '男' WHEN a.gender_cd = '5000003' THEN '女' ELSE '其他' END AS gender,\n  AVG(s.nm_tot_aset + s.fc_pur_aset) AS avg_total_asset\nFROM ads_cust_info_d a\nJOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\nWHERE s.data_dt = '20260331'\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 2,
+      "predicted_row_count": 2,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "41",
+      "question": "",
+      "gold_sql": "select c.describe as edu,\r\n       round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_public c on a.edu_cd=c.code and c.code_type_id='600'\r\nwhere a.data_dt='20260531'\r\ngroup by c.describe\r\norder by avg_aset desc nulls last;",
+      "predicted_sql": "SELECT a.edu_cd, AVG(s.nm_tot_aset + s.fc_pur_aset) AS avg_total_asset\nFROM ads_cust_info_d a\nJOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\nWHERE s.data_dt = '20260331'\nGROUP BY a.edu_cd\nORDER BY a.edu_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 7,
+      "predicted_row_count": 7,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "42",
+      "question": "",
+      "gold_sql": "select distinct a.pty_id\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere b.prdt_name='比亚迪' and b.prdt_type_name='A股'\r\n  and a.data_dt='20260331'\r\norder by pty_id;",
+      "predicted_sql": "SELECT DISTINCT h.pty_id\nFROM dwd_cust_hold_d h\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE p.prdt_name LIKE '%比亚迪%'\n  AND p.up_prdt_type_id = 'PT040000'\n  AND h.data_dt = '20260331'\nORDER BY h.pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.855642,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 85.0832,
+        "predicted_mean_ms": 99.4446,
+        "ratios": [
+          0.86352,
+          0.844271,
+          0.847713,
+          0.877223,
+          0.845483
+        ]
+      },
+      "gold_row_count": 4,
+      "predicted_row_count": 4,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "43",
+      "question": "",
+      "gold_sql": "select c.up_prdt_type_name,\r\n       sum(a.mkt_val) as mkt_val,\r\n       count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product c on a.prdt_id=c.prdt_id\r\nwhere a.data_dt='20260331'\r\ngroup by c.up_prdt_type_name\r\norder by mkt_val desc nulls last;",
+      "predicted_sql": "SELECT\n  p.up_prdt_type_name,\n  SUM(h.mkt_val) AS total_mkt_val,\n  COUNT(DISTINCT h.pty_id) AS hold_cust_count\nFROM dwd_cust_hold_d h\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\nGROUP BY p.up_prdt_type_name\nORDER BY total_mkt_val DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.995925,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 173.2396,
+        "predicted_mean_ms": 173.9704,
+        "ratios": [
+          0.995184,
+          1.021856,
+          0.994578,
+          0.994014,
+          0.97399
+        ]
+      },
+      "gold_row_count": 6,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "44",
+      "question": "",
+      "gold_sql": "select b.org_name, count(*) as cnt\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\nwhere a.data_dt='20260531' and a.prov_name='江苏省'\r\ngroup by b.org_name\r\norder by cnt desc, b.org_name;",
+      "predicted_sql": "SELECT b.org_name AS ying_ye_bu, COUNT(*) AS cust_count\nFROM ads_cust_info_d a\nJOIN dim_branch b ON a.org_id = b.org_id\nWHERE a.prov_name = '江苏省'\nGROUP BY b.org_name\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.21873,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 0.9182,
+        "predicted_mean_ms": 0.745,
+        "ratios": [
+          0.907433,
+          0.937397,
+          0.684271,
+          1.407355,
+          2.157195
+        ]
+      },
+      "gold_row_count": 7,
+      "predicted_row_count": 7,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "45",
+      "question": "",
+      "gold_sql": "select b.up_org_name, count(*) as cust_cnt, round(avg(a.cust_age),1) as avg_age\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\nwhere a.data_dt='20260531'\r\ngroup by b.up_org_name\r\norder by cust_cnt desc, b.up_org_name;",
+      "predicted_sql": "SELECT b.up_org_name AS fen_gong_si,\n       COUNT(*) AS cust_count,\n       AVG(a.cust_age) AS avg_age\nFROM ads_cust_info_d a\nJOIN dim_branch b ON a.org_id = b.org_id\nGROUP BY b.up_org_name\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "46",
+      "question": "",
+      "gold_sql": "select c.describe as profession, count(*) as cnt\r\nfrom ads_cust_info_d a\r\nleft join dim_public c on a.prof_cd=c.code and c.code_type_id='700'\r\nwhere a.data_dt='20260531'\r\n  and c.describe in ('公职 离/退休','非公职 离/退休')\r\ngroup by c.describe\r\norder by profession;",
+      "predicted_sql": "SELECT COUNT(*) AS retiree_count\nFROM ads_cust_info_d\nWHERE prof_cd IN ('7000020','7000021')\n  AND prof_cd IS NOT NULL;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 2,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "47",
+      "question": "",
+      "gold_sql": "select round(avg(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)),2) as avg_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nwhere a.data_dt='20260531' and a.cust_age<30;",
+      "predicted_sql": "SELECT AVG(s.nm_tot_aset + s.fc_pur_aset) AS avg_total_asset\nFROM ads_cust_info_d a\nJOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\nWHERE s.data_dt = '20260331'\n  AND a.cust_age < 30;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.555104,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 0.3398,
+        "predicted_mean_ms": 0.2582,
+        "ratios": [
+          0.903101,
+          0.445434,
+          3.061033,
+          1.072165,
+          2.293785
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "48",
+      "question": "",
+      "gold_sql": "select substring(data_dt,1,6) as mon,\r\n       sum(buy_amt) as buy_amt,\r\n       sum(sell_amt) as sell_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by substring(data_dt,1,6)\r\norder by mon;",
+      "predicted_sql": "SELECT\n  SUBSTR(data_dt, 1, 6) AS ym,\n  SUM(buy_amt) AS buy_amt,\n  SUM(sell_amt) AS sell_amt\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331'\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.973636,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 23.472,
+        "predicted_mean_ms": 24.153,
+        "ratios": [
+          0.919362,
+          1.001667,
+          0.981498,
+          1.037888,
+          0.927766
+        ]
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "49",
+      "question": "",
+      "gold_sql": "select c.describe as cust_lvl, count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_tran_d a\r\ninner join ads_cust_info_d b on a.pty_id=b.pty_id and b.data_dt='20260531'\r\nleft join dim_public c on b.cust_lvl_cd=c.code and c.code_type_id='100'\r\nwhere a.data_dt between '20260101' and '20260331'\r\ngroup by c.describe\r\norder by cust_cnt desc;",
+      "predicted_sql": "SELECT a.cust_lvl_cd, COUNT(DISTINCT t.pty_id) AS active_cust_count\nFROM dwd_cust_tran_d t\nJOIN ads_cust_info_d a ON t.pty_id = a.pty_id\nWHERE t.data_dt BETWEEN '20260101' AND '20260331'\n  AND (t.buy_amt > 0 OR t.sell_amt > 0)\nGROUP BY a.cust_lvl_cd\nORDER BY a.cust_lvl_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 6,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "50",
+      "question": "",
+      "gold_sql": "select sum(mkt_val) as fc_mkt_val,\r\n       count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331' and sys_source='fc';",
+      "predicted_sql": "SELECT SUM(mkt_val) AS total_mkt_val, COUNT(DISTINCT pty_id) AS hold_cust_count\nFROM dwd_cust_hold_d\nWHERE data_dt = '20260331'\n  AND sys_source = 'fc';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.009062,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 53.8874,
+        "predicted_mean_ms": 53.4282,
+        "ratios": [
+          1.01528,
+          0.994665,
+          1.007573,
+          0.99336,
+          1.034433
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "51",
+      "question": "",
+      "gold_sql": "select pty_id, sum(mkt_val) as hkd_mkt_val\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331' and ccy='2'\r\ngroup by pty_id\r\norder by hkd_mkt_val desc nulls last;",
+      "predicted_sql": "SELECT pty_id, SUM(mkt_val) AS hkd_mkt_val\nFROM dwd_cust_hold_d\nWHERE data_dt = '20260331'\n  AND ccy = '2'\nGROUP BY pty_id\nORDER BY pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.978104,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 59.199,
+        "predicted_mean_ms": 60.55,
+        "ratios": [
+          0.93909,
+          1.000702,
+          0.965695,
+          0.966996,
+          1.018035
+        ]
+      },
+      "gold_row_count": 15,
+      "predicted_row_count": 15,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "52",
+      "question": "",
+      "gold_sql": "select count(distinct a.pty_id) as cust_cnt,\r\n       sum(a.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_type_name='科创板';",
+      "predicted_sql": "SELECT COUNT(DISTINCT h.pty_id) AS hold_cust_count,\n       SUM(h.mkt_val) AS total_mkt_val\nFROM dwd_cust_hold_d h\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\n  AND p.sor_prdt_id LIKE '688%';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.019572,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 86.9712,
+        "predicted_mean_ms": 85.3248,
+        "ratios": [
+          1.002928,
+          1.030672,
+          0.994389,
+          1.015577,
+          1.054295
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "53",
+      "question": "",
+      "gold_sql": "select count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_type_name='ETF';",
+      "predicted_sql": "SELECT COUNT(DISTINCT h.pty_id) AS etf_cust_count\nFROM dwd_cust_hold_d h\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\n  AND p.prdt_type_name = 'ETF';",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.967787,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 86.466,
+        "predicted_mean_ms": 89.617,
+        "ratios": [
+          0.986968,
+          0.974493,
+          1.005846,
+          0.861327,
+          1.010302
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "54",
+      "question": "",
+      "gold_sql": "select count(*) as cnt,\r\n       round(count(*)*100.0/(select count(*) from ads_cust_info_d where data_dt='20260531'),2) as pct\r\nfrom ads_cust_info_d a\r\nleft join dim_public b on a.edu_cd=b.code and b.code_type_id='600'\r\nwhere a.data_dt='20260531' and b.describe in ('硕士','博士');",
+      "predicted_sql": "WITH total AS (\n  SELECT COUNT(*) AS total_count FROM ads_cust_info_d\n),\nmaster_above AS (\n  SELECT COUNT(*) AS master_above_count\n  FROM ads_cust_info_d\n  WHERE edu_cd IN ('6000002', '6000003')\n)\nSELECT master_above_count, total_count,\n       master_above_count::numeric / total_count AS ratio\nFROM master_above, total;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "55",
+      "question": "",
+      "gold_sql": "select prov_name, city_name, count(*) as cnt, round(avg(cust_age),1) as avg_age\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by prov_name, city_name\r\norder by cnt desc, prov_name, city_name;",
+      "predicted_sql": "SELECT city_name, COUNT(*) AS cust_count, AVG(cust_age) AS avg_age\nFROM ads_cust_info_d\nGROUP BY city_name\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 11,
+      "predicted_row_count": 11,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "56",
+      "question": "",
+      "gold_sql": "select pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331'\r\ngroup by pty_id\r\norder by prdt_cnt desc\r\n, pty_id\r\nlimit 10;",
+      "predicted_sql": "SELECT pty_id, COUNT(DISTINCT prdt_id) AS prdt_count\nFROM dwd_cust_hold_d\nWHERE data_dt = '20260331'\nGROUP BY pty_id\nORDER BY prdt_count DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.996791,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 52.4368,
+        "predicted_mean_ms": 52.7024,
+        "ratios": [
+          0.992131,
+          1.000928,
+          0.891199,
+          1.045314,
+          1.054385
+        ]
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "57",
+      "question": "",
+      "gold_sql": "select sys_source,\r\n       sum(buy_amt) as buy_amt,\r\n       sum(sell_amt) as sell_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by sys_source\r\norder by sys_source;",
+      "predicted_sql": "SELECT sys_source, SUM(buy_amt + sell_amt) AS total_amt\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331'\n  AND sys_source IN ('nm', 'fc')\nGROUP BY sys_source\nORDER BY sys_source;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 2,
+      "predicted_row_count": 2,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "58",
+      "question": "",
+      "gold_sql": "select a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as tot_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\n  and coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)>1000000\r\norder by tot_aset desc;",
+      "predicted_sql": "SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset\nFROM dws_cust_aset_d\nWHERE data_dt = '20260331'\n  AND nm_tot_aset + fc_pur_aset > 1000000\nORDER BY total_asset DESC, pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.91261,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 5.023,
+        "predicted_mean_ms": 5.5204,
+        "ratios": [
+          0.92079,
+          0.93026,
+          0.83795,
+          0.853617,
+          1.02043
+        ]
+      },
+      "gold_row_count": 88,
+      "predicted_row_count": 88,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "59",
+      "question": "",
+      "gold_sql": "select count(*) as cust_cnt\r\nfrom\r\n(\r\nselect pty_id, sum(cash_in) as cash_in, sum(cash_out) as cash_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\nhaving sum(cash_out)>sum(cash_in)\r\n) t;",
+      "predicted_sql": "SELECT COUNT(*) AS net_outflow_cust_count\nFROM (\n  SELECT pty_id, SUM(cash_in) AS ci, SUM(cash_out) AS co\n  FROM dws_cust_fin_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n  HAVING SUM(cash_out) > SUM(cash_in)\n) t;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.107784,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 3.7744,
+        "predicted_mean_ms": 3.5666,
+        "ratios": [
+          1.012514,
+          0.682784,
+          1.517131,
+          0.874514,
+          1.451976
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "60",
+      "question": "",
+      "gold_sql": "select c.org_name,\r\n       sum(coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)) as tot_aset\r\nfrom ads_cust_info_d a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dim_branch c on a.org_id=c.org_id\r\nwhere a.data_dt='20260531'\r\ngroup by c.org_name\r\norder by tot_aset desc nulls last;",
+      "predicted_sql": "SELECT b.org_name AS ying_ye_bu,\n       SUM(s.nm_tot_aset + s.fc_pur_aset) AS total_asset\nFROM ads_cust_info_d a\nJOIN dim_branch b ON a.org_id = b.org_id\nJOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\nWHERE s.data_dt = '20260331'\nGROUP BY b.org_name\nORDER BY total_asset DESC, b.org_name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.050903,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 6.4338,
+        "predicted_mean_ms": 6.228,
+        "ratios": [
+          0.955669,
+          0.733378,
+          1.558933,
+          1.044174,
+          0.96236
+        ]
+      },
+      "gold_row_count": 15,
+      "predicted_row_count": 15,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "61",
+      "question": "",
+      "gold_sql": "select a.pty_id, sum(a.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_name='招商银行' and b.prdt_type_name='A股'\r\ngroup by a.pty_id\r\norder by mkt_val desc\r\nlimit 10;",
+      "predicted_sql": "SELECT h.pty_id, SUM(h.mkt_val) AS total_mkt_val\nFROM dwd_cust_hold_d h\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\n  AND p.prdt_name LIKE '%招商银行%'\n  AND p.up_prdt_type_id = 'PT040000'\nGROUP BY h.pty_id\nORDER BY total_mkt_val DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.836505,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 89.0104,
+        "predicted_mean_ms": 106.5514,
+        "ratios": [
+          0.762379,
+          0.849262,
+          0.852831,
+          0.872337,
+          0.845718
+        ]
+      },
+      "gold_row_count": 2,
+      "predicted_row_count": 2,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "62",
+      "question": "",
+      "gold_sql": "select case when cust_age<30 then '<30'\r\n            when cust_age>=30 and cust_age<50 then '[30,50)'\r\n            when cust_age>=50 and cust_age<60 then '[50,60)'\r\n            else '[60,)' end as age_grp,\r\n       count(*) as cnt\r\nfrom ads_cust_info_d\r\nwhere data_dt='20260531'\r\ngroup by 1\r\norder by 1;",
+      "predicted_sql": "SELECT\n  CASE\n    WHEN cust_age < 30 THEN '<30'\n    WHEN cust_age < 50 THEN '[30,50)'\n    WHEN cust_age < 60 THEN '[50,60)'\n    ELSE '60+'\n  END AS age_group,\n  COUNT(*) AS cust_count\nFROM ads_cust_info_d\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "63",
+      "question": "",
+      "gold_sql": "select c.up_prdt_type_name,\r\n       sum(b.buy_amt)+sum(b.sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d b\r\ninner join dim_product c on b.prdt_id=c.prdt_id\r\nwhere b.data_dt between '20260101' and '20260331'\r\ngroup by c.up_prdt_type_name\r\norder by tran_amt desc nulls last;",
+      "predicted_sql": "SELECT p.up_prdt_type_name,\n       SUM(t.buy_amt + t.sell_amt) AS total_amt\nFROM dwd_cust_tran_d t\nJOIN dim_product p ON t.prdt_id = p.prdt_id\nWHERE t.data_dt BETWEEN '20260101' AND '20260331'\nGROUP BY p.up_prdt_type_name\nORDER BY total_amt DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.979044,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 180.7212,
+        "predicted_mean_ms": 184.6884,
+        "ratios": [
+          0.93534,
+          0.997279,
+          0.988006,
+          1.005226,
+          0.969367
+        ]
+      },
+      "gold_row_count": 6,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "64",
+      "question": "",
+      "gold_sql": "select round(avg(a.cust_age),1) as avg_age\r\nfrom ads_cust_info_d a\r\nwhere a.data_dt='20260531'\r\n  and exists(select 1 from dwd_cust_tran_d b\r\n             where b.pty_id=a.pty_id and b.sys_source='fc'\r\n               and b.data_dt between '20260101' and '20260331');",
+      "predicted_sql": "SELECT AVG(a.cust_age) AS avg_age\nFROM ads_cust_info_d a\nJOIN dwd_cust_tran_d t ON a.pty_id = t.pty_id\nWHERE t.data_dt BETWEEN '20260101' AND '20260331'\n  AND t.sys_source = 'fc'\n  AND (t.buy_amt > 0 OR t.sell_amt > 0);",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "65",
+      "question": "",
+      "gold_sql": "select round(avg(t.prdt_cnt),1) as avg_prdt_cnt\r\nfrom ads_cust_info_d a\r\ninner join dim_public c on a.gender_cd=c.code and c.code_type_id='500'\r\ninner join\r\n(\r\nselect pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331'\r\ngroup by pty_id\r\n) t on a.pty_id=t.pty_id\r\nwhere a.data_dt='20260531' and c.describe='女';",
+      "predicted_sql": "WITH female_hold AS (\n  SELECT a.pty_id, COUNT(DISTINCT h.prdt_id) AS prdt_count\n  FROM ads_cust_info_d a\n  JOIN dwd_cust_hold_d h ON a.pty_id = h.pty_id\n  WHERE h.data_dt = '20260331'\n    AND a.gender_cd = '5000003'\n  GROUP BY a.pty_id\n)\nSELECT AVG(prdt_count) AS avg_prdt_count FROM female_hold;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "66",
+      "question": "",
+      "gold_sql": "select pty_id,\r\n       coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\norder by tot_aset desc\r\nlimit 10;",
+      "predicted_sql": "SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset\nFROM dws_cust_aset_d\nWHERE data_dt = '20260331'\nORDER BY total_asset DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.048085,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 5.2016,
+        "predicted_mean_ms": 5.0416,
+        "ratios": [
+          0.926241,
+          1.03177,
+          1.291885,
+          0.726784,
+          1.263745
+        ]
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "67",
+      "question": "",
+      "gold_sql": "select substring(data_dt,1,6) as mon,\r\n       count(distinct pty_id) as cust_cnt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by substring(data_dt,1,6)\r\norder by mon;",
+      "predicted_sql": "SELECT\n  SUBSTR(data_dt, 1, 6) AS ym,\n  COUNT(DISTINCT pty_id) AS active_cust_count\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331'\n  AND (buy_amt > 0 OR sell_amt > 0)\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.00484,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 57.1064,
+        "predicted_mean_ms": 56.266,
+        "ratios": [
+          1.15085,
+          0.87295,
+          1.194489,
+          0.927709,
+          0.878201
+        ]
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "68",
+      "question": "",
+      "gold_sql": "with fin as\r\n(\r\nselect pty_id,\r\n       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0)) as aset_in,\r\n       sum(coalesce(cash_out,0))+sum(coalesce(tran_out,0))+sum(coalesce(assign_out,0)) as aset_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset,\r\n       coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset,\r\n       coalesce(d.aset_in,0) as aset_in,\r\n       coalesce(d.aset_out,0) as aset_out,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)\r\n       -coalesce(c.nm_tot_aset,0)-coalesce(c.fc_pur_aset,0)\r\n       +coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft\r\nfrom (select distinct pty_id from dws_cust_aset_d where data_dt='20260331') a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'\r\nleft join fin d on a.pty_id=d.pty_id\r\norder by a.pty_id;",
+      "predicted_sql": "WITH pnl AS (\n  SELECT\n    s_end.pty_id,\n    (s_end.nm_tot_aset + s_end.fc_pur_aset)\n      - (s_beg.nm_tot_aset + s_beg.fc_pur_aset)\n      + COALESCE(f.cash_out_sum, 0) - COALESCE(f.cash_in_sum, 0) AS pnl_amt\n  FROM dws_cust_aset_d s_end\n  JOIN dws_cust_aset_d s_beg ON s_end.pty_id = s_beg.pty_id\n  LEFT JOIN (\n    SELECT pty_id,\n           SUM(cash_in) AS cash_in_sum,\n           SUM(cash_out) AS cash_out_sum\n    FROM dws_cust_fin_d\n    WHERE data_dt BETWEEN '20260101' AND '20260331'\n    GROUP BY pty_id\n  ) f ON s_end.pty_id = f.pty_id\n  WHERE s_end.data_dt = '20260331'\n    AND s_beg.data_dt = '20260101'\n)\nSELECT SUM(pnl_amt) AS total_pnl FROM pnl;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 486,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "69",
+      "question": "",
+      "gold_sql": "select substring(data_dt,1,6) as mon,\r\n       sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0)) as tot_aset\r\nfrom dws_cust_aset_d\r\ngroup by substring(data_dt,1,6)\r\norder by mon;",
+      "predicted_sql": "SELECT\n  SUBSTR(data_dt, 1, 6) AS ym,\n  SUM(nm_tot_aset + fc_pur_aset) AS total_asset\nFROM dws_cust_aset_d\nWHERE data_dt BETWEEN '20260101' AND '20260331'\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.809349,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 23.2932,
+        "predicted_mean_ms": 30.9338,
+        "ratios": [
+          0.978924,
+          0.75261,
+          0.784087,
+          0.479097,
+          1.052025
+        ]
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "70",
+      "question": "",
+      "gold_sql": "select a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0) as end_aset,\r\n       coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0) as bgn_aset\r\nfrom (select distinct pty_id from dws_cust_aset_d where data_dt='20260101') a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'\r\nwhere coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>0\r\n  and coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)\r\n     <(coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0))*0.9\r\norder by a.pty_id;",
+      "predicted_sql": "WITH a_beg AS (\n  SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset\n  FROM dws_cust_aset_d\n  WHERE data_dt = '20260101'\n),\na_end AS (\n  SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset\n  FROM dws_cust_aset_d\n  WHERE data_dt = '20260331'\n)\nSELECT COUNT(*) AS asset_loss_cust_count\nFROM a_beg b\nJOIN a_end e ON b.pty_id = e.pty_id\nWHERE e.total_asset < b.total_asset * 0.9;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 120,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "71",
+      "question": "",
+      "gold_sql": "select pty_id, count(distinct data_dt) as trade_days\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\norder by trade_days desc\r\n, pty_id\r\nlimit 10;",
+      "predicted_sql": "SELECT pty_id, COUNT(DISTINCT data_dt) AS tran_days\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331'\n  AND (buy_amt > 0 OR sell_amt > 0)\nGROUP BY pty_id\nORDER BY tran_days DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.880741,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 41.2306,
+        "predicted_mean_ms": 46.7244,
+        "ratios": [
+          0.901884,
+          0.867844,
+          0.859428,
+          0.870186,
+          0.904362
+        ]
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "72",
+      "question": "",
+      "gold_sql": "select pty_id,\r\n       coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset,\r\n       rank() over(order by coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) desc) as rnk\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\norder by rnk\r\nlimit 20;",
+      "predicted_sql": "WITH rank_asset AS (\n  SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset,\n         DENSE_RANK() OVER (ORDER BY (nm_tot_aset + fc_pur_aset) DESC) AS rnk\n  FROM dws_cust_aset_d\n  WHERE data_dt = '20260331'\n)\nSELECT pty_id, total_asset, rnk\nFROM rank_asset\nWHERE rnk <= 20\nORDER BY rnk, pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.132045,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 5.5342,
+        "predicted_mean_ms": 4.8864,
+        "ratios": [
+          1.091592,
+          1.169124,
+          1.193648,
+          1.184294,
+          1.021569
+        ]
+      },
+      "gold_row_count": 20,
+      "predicted_row_count": 20,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "73",
+      "question": "",
+      "gold_sql": "with lvl as\r\n(\r\nselect a.pty_id, c.describe as cust_lvl\r\nfrom ads_cust_info_d a\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nwhere a.data_dt='20260531'\r\n),\r\ntran as\r\n(\r\nselect pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt, count(distinct data_dt) as trade_days\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect l.cust_lvl,\r\n       count(t.pty_id) as trade_cust_cnt,\r\n       round(avg(t.tran_amt),2) as avg_tran_amt,\r\n       round(avg(t.trade_days),1) as avg_trade_days\r\nfrom lvl l\r\nleft join tran t on l.pty_id=t.pty_id\r\ngroup by l.cust_lvl\r\norder by avg_tran_amt desc nulls last;",
+      "predicted_sql": "SELECT a.cust_lvl_cd,\n       COUNT(DISTINCT t.pty_id) AS active_cust_count,\n       AVG(t.tot_amt) AS avg_tran_amt,\n       AVG(t.tran_days) AS avg_tran_days\nFROM ads_cust_info_d a\nJOIN (\n  SELECT pty_id,\n         SUM(buy_amt + sell_amt) AS tot_amt,\n         COUNT(DISTINCT data_dt) AS tran_days\n  FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n    AND (buy_amt > 0 OR sell_amt > 0)\n  GROUP BY pty_id\n) t ON a.pty_id = t.pty_id\nGROUP BY a.cust_lvl_cd\nORDER BY a.cust_lvl_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 6,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "74",
+      "question": "",
+      "gold_sql": "with tot as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\n)\r\nselect a.pty_id, d.prdt_name, a.mkt_val, b.tot_aset,\r\n       round(a.mkt_val*100.0/nullif(b.tot_aset,0),2) as pct\r\nfrom dwd_cust_hold_d a\r\ninner join tot b on a.pty_id=b.pty_id\r\ninner join dim_product d on a.prdt_id=d.prdt_id\r\nwhere a.data_dt='20260331'\r\n  and a.mkt_val*100.0/nullif(b.tot_aset,0)>50\r\norder by pct desc, a.pty_id, d.prdt_name, a.mkt_val desc;",
+      "predicted_sql": "WITH cust_total_asset AS (\n  SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset\n  FROM dws_cust_aset_d\n  WHERE data_dt = '20260331'\n)\nSELECT h.pty_id, h.prdt_id, h.mkt_val, c.total_asset\nFROM dwd_cust_hold_d h\nJOIN cust_total_asset c ON h.pty_id = c.pty_id\nWHERE h.data_dt = '20260331'\n  AND c.total_asset > 0\n  AND h.mkt_val / c.total_asset > 0.5\nORDER BY h.pty_id, h.mkt_val DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 242,
+      "predicted_row_count": 242,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "75",
+      "question": "",
+      "gold_sql": "with buy_q1 as\r\n(\r\nselect distinct a.prdt_id, a.pty_id\r\nfrom dwd_cust_tran_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id and b.up_prdt_type_id='PT040000'\r\nwhere a.data_dt between '20260101' and '20260331' and a.buy_amt>0\r\n)\r\nselect c.up_prdt_type_name, c.prdt_type_name,\r\n       count(distinct a.prdt_id) as prdt_cnt,\r\n       count(distinct a.pty_id) as cust_cnt\r\nfrom dwd_cust_hold_d a\r\ninner join buy_q1 b on a.prdt_id=b.prdt_id and a.pty_id=b.pty_id\r\ninner join dim_product c on a.prdt_id=c.prdt_id\r\nwhere a.data_dt='20260331'\r\ngroup by c.up_prdt_type_name, c.prdt_type_name\r\norder by cust_cnt desc;",
+      "predicted_sql": "SELECT p.prdt_type_name,\n       COUNT(DISTINCT p.prdt_id) AS prdt_count,\n       COUNT(DISTINCT h.pty_id) AS cust_count\nFROM dwd_cust_hold_d h\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\n  AND p.up_prdt_type_id = 'PT040000'\n  AND h.prdt_id IN (\n    SELECT t.prdt_id\n    FROM dwd_cust_tran_d t\n    WHERE t.data_dt BETWEEN '20260101' AND '20260331'\n      AND t.buy_amt > 0\n  )\nGROUP BY p.prdt_type_name\nORDER BY p.prdt_type_name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 6,
+      "predicted_row_count": 6,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "76",
+      "question": "",
+      "gold_sql": "with bgn_hold as\r\n(\r\nselect distinct pty_id from dwd_cust_hold_d where data_dt='20260101'\r\n),\r\nend_hold as\r\n(\r\nselect distinct pty_id from dwd_cust_hold_d where data_dt='20260331'\r\n)\r\nselect count(*) as clear_cust_cnt\r\nfrom bgn_hold a\r\nwhere not exists(select 1 from end_hold b where a.pty_id=b.pty_id);",
+      "predicted_sql": "WITH beg_hold AS (\n  SELECT DISTINCT pty_id FROM dwd_cust_hold_d WHERE data_dt = '20260101'\n),\nend_hold AS (\n  SELECT DISTINCT pty_id FROM dwd_cust_hold_d WHERE data_dt = '20260331'\n)\nSELECT COUNT(*) AS clear_position_cust_count\nFROM beg_hold b\nLEFT JOIN end_hold e ON b.pty_id = e.pty_id\nWHERE e.pty_id IS NULL;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.986721,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 95.1414,
+        "predicted_mean_ms": 96.4598,
+        "ratios": [
+          1.019116,
+          0.960237,
+          0.998653,
+          0.966296,
+          0.989304
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "77",
+      "question": "",
+      "gold_sql": "select pty_id,\r\n       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0))\r\n      -sum(coalesce(cash_out,0))-sum(coalesce(tran_out,0))-sum(coalesce(assign_out,0)) as net_in\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\norder by net_in desc\r\nlimit 10;",
+      "predicted_sql": "WITH cashflow AS (\n  SELECT pty_id,\n         SUM(cash_in - cash_out + tran_in - tran_out + assign_in - assign_out) AS net_inflow\n  FROM dws_cust_fin_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n)\nSELECT pty_id, net_inflow\nFROM cashflow\nORDER BY net_inflow DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.161051,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 5.9092,
+        "predicted_mean_ms": 5.1082,
+        "ratios": [
+          1.178973,
+          1.229872,
+          1.088705,
+          1.0757,
+          1.232004
+        ]
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "78",
+      "question": "",
+      "gold_sql": "with cust_tran as\r\n(\r\nselect pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect b.up_org_name,\r\n       count(distinct a.pty_id) as cust_cnt,\r\n       sum(coalesce(t.tran_amt,0)) as tran_amt,\r\n       sum(coalesce(d.nm_tot_aset,0)+coalesce(d.fc_pur_aset,0)) as end_aset\r\nfrom ads_cust_info_d a\r\ninner join dim_branch b on a.org_id=b.org_id\r\nleft join cust_tran t on a.pty_id=t.pty_id\r\nleft join dws_cust_aset_d d on a.pty_id=d.pty_id and d.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\ngroup by b.up_org_name\r\norder by end_aset desc nulls last;",
+      "predicted_sql": "SELECT b.up_org_name AS fen_gong_si,\n       COUNT(DISTINCT a.pty_id) AS cust_count,\n       COALESCE(SUM(t.tot_amt), 0) AS tran_total,\n       COALESCE(SUM(s.nm_tot_aset + s.fc_pur_aset), 0) AS end_asset\nFROM dim_branch b\nLEFT JOIN ads_cust_info_d a ON a.org_id = b.org_id\nLEFT JOIN (\n  SELECT pty_id, SUM(buy_amt + sell_amt) AS tot_amt\n  FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n) t ON a.pty_id = t.pty_id\nLEFT JOIN dws_cust_aset_d s ON a.pty_id = s.pty_id AND s.data_dt = '20260331'\nGROUP BY b.up_org_name\nORDER BY cust_count DESC, b.up_org_name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 27,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "79",
+      "question": "",
+      "gold_sql": "select pty_id, sum(coalesce(buy_rake,0))+sum(coalesce(sell_rake,0)) as tot_rake\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\norder by tot_rake desc\r\nlimit 10;",
+      "predicted_sql": "SELECT pty_id, SUM(buy_rake + sell_rake) AS total_rake\nFROM dwd_cust_tran_d\nWHERE data_dt BETWEEN '20260101' AND '20260331'\nGROUP BY pty_id\nORDER BY total_rake DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.846737,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 20.1878,
+        "predicted_mean_ms": 26.7344,
+        "ratios": [
+          0.440204,
+          0.8994,
+          1.002504,
+          0.93701,
+          0.954568
+        ]
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "80",
+      "question": "",
+      "gold_sql": "with aset as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\n),\r\ntran as\r\n(\r\nselect pty_id, sum(coalesce(buy_amt,0))+sum(coalesce(sell_amt,0)) as tran_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect a.pty_id, a.tot_aset, coalesce(t.tran_amt,0) as tran_amt\r\nfrom aset a\r\nleft join tran t on a.pty_id=t.pty_id\r\nwhere a.tot_aset>500000 and coalesce(t.tran_amt,0)<10000\r\norder by a.tot_aset desc;",
+      "predicted_sql": "WITH high_asset AS (\n  SELECT pty_id FROM dws_cust_aset_d\n  WHERE data_dt = '20260331' AND nm_tot_aset + fc_pur_aset > 500000\n),\nlow_tran AS (\n  SELECT pty_id FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n  HAVING SUM(buy_amt + sell_amt) < 10000\n)\nSELECT COUNT(*) AS potential_cust_count\nFROM high_asset h\nJOIN low_tran l ON h.pty_id = l.pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 14,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "81",
+      "question": "",
+      "gold_sql": "with tran_m as\r\n(\r\nselect pty_id,\r\n       max(case when substring(data_dt,1,6)='202601' then 1 else 0 end) as m1,\r\n       max(case when substring(data_dt,1,6)='202602' then 1 else 0 end) as m2,\r\n       max(case when substring(data_dt,1,6)='202603' then 1 else 0 end) as m3\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect count(*) as active_cust_cnt\r\nfrom tran_m\r\nwhere m1=0 and (m2=1 or m3=1);",
+      "predicted_sql": "WITH jan_tran AS (\n  SELECT DISTINCT pty_id FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260131'\n    AND (buy_amt > 0 OR sell_amt > 0)\n),\nfeb_mar_tran AS (\n  SELECT DISTINCT pty_id FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260201' AND '20260331'\n    AND (buy_amt > 0 OR sell_amt > 0)\n)\nSELECT COUNT(*) AS activated_cust_count\nFROM feb_mar_tran f\nLEFT JOIN jan_tran j ON f.pty_id = j.pty_id\nWHERE j.pty_id IS NULL;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.912041,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 23.758,
+        "predicted_mean_ms": 26.0646,
+        "ratios": [
+          0.928034,
+          0.841182,
+          0.933415,
+          0.918355,
+          0.939221
+        ]
+      },
+      "gold_row_count": 1,
+      "predicted_row_count": 1,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "82",
+      "question": "",
+      "gold_sql": "with bgn as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as aset\r\nfrom dws_cust_aset_d where data_dt='20260101'\r\n),\r\nendd as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as aset\r\nfrom dws_cust_aset_d where data_dt='20260331'\r\n)\r\nselect case when a.aset<100000 then '<10万'\r\n            when a.aset<500000 then '[10万,50万)'\r\n            else '50万以上' end as bgn_lvl,\r\n       case when b.aset<100000 then '<10万'\r\n            when b.aset<500000 then '[10万,50万)'\r\n            else '50万以上' end as end_lvl,\r\n       count(*) as cnt\r\nfrom bgn a\r\ninner join endd b on a.pty_id=b.pty_id\r\ngroup by 1,2\r\norder by 1,2;",
+      "predicted_sql": "WITH cust_asset AS (\n  SELECT pty_id,\n         SUM(CASE WHEN data_dt = '20260101' THEN nm_tot_aset + fc_pur_aset END) AS asset_beg,\n         SUM(CASE WHEN data_dt = '20260331' THEN nm_tot_aset + fc_pur_aset END) AS asset_end\n  FROM dws_cust_aset_d\n  WHERE data_dt IN ('20260101', '20260331')\n  GROUP BY pty_id\n),\ntier AS (\n  SELECT pty_id,\n         CASE\n           WHEN asset_beg < 100000 THEN 'T1_beg'\n           WHEN asset_beg < 500000 THEN 'T2_beg'\n           ELSE 'T3_beg'\n         END AS tier_beg,\n         CASE\n           WHEN asset_end < 100000 THEN 'T1_end'\n           WHEN asset_end < 500000 THEN 'T2_end'\n           ELSE 'T3_end'\n         END AS tier_end\n  FROM cust_asset\n  WHERE asset_beg IS NOT NULL AND asset_end IS NOT NULL\n)\nSELECT tier_beg, tier_end, COUNT(*) AS cust_count\nFROM tier\nGROUP BY tier_beg, tier_end\nORDER BY tier_beg, tier_end;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 9,
+      "predicted_row_count": 9,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "83",
+      "question": "",
+      "gold_sql": "select case when a.cust_age<30 then '<30'\r\n            when a.cust_age>=30 and a.cust_age<50 then '[30,50)'\r\n            else '[50,)' end as age_grp,\r\n       c.up_prdt_type_name,\r\n       sum(b.mkt_val) as mkt_val\r\nfrom ads_cust_info_d a\r\ninner join dwd_cust_hold_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\ninner join dim_product c on b.prdt_id=c.prdt_id\r\nwhere a.data_dt='20260531'\r\ngroup by 1,2\r\norder by 1, mkt_val desc nulls last;",
+      "predicted_sql": "SELECT\n  CASE\n    WHEN a.cust_age < 30 THEN '<30'\n    WHEN a.cust_age < 50 THEN '[30,50)'\n    WHEN a.cust_age < 60 THEN '[50,60)'\n    ELSE '60+'\n  END AS age_group,\n  p.up_prdt_type_name,\n  SUM(h.mkt_val) AS total_mkt_val\nFROM ads_cust_info_d a\nJOIN dwd_cust_hold_d h ON a.pty_id = h.pty_id\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\nGROUP BY 1, p.up_prdt_type_name\nORDER BY age_group, total_mkt_val DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 9,
+      "predicted_row_count": 14,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "84",
+      "question": "",
+      "gold_sql": "with fin as\r\n(\r\nselect pty_id,\r\n       sum(coalesce(cash_in,0))+sum(coalesce(tran_in,0))+sum(coalesce(assign_in,0)) as aset_in,\r\n       sum(coalesce(cash_out,0))+sum(coalesce(tran_out,0))+sum(coalesce(assign_out,0)) as aset_out\r\nfrom dws_cust_fin_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n),\r\npft as\r\n(\r\nselect a.pty_id,\r\n       coalesce(b.nm_tot_aset,0)+coalesce(b.fc_pur_aset,0)\r\n       -coalesce(c.nm_tot_aset,0)-coalesce(c.fc_pur_aset,0)\r\n       +coalesce(d.aset_out,0)-coalesce(d.aset_in,0) as aset_pft\r\nfrom (select distinct pty_id from dws_cust_aset_d where data_dt='20260331') a\r\nleft join dws_cust_aset_d b on a.pty_id=b.pty_id and b.data_dt='20260331'\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260101'\r\nleft join fin d on a.pty_id=d.pty_id\r\n)\r\nselect case when aset_pft>0 then '盈利'\r\n            when aset_pft<0 then '亏损'\r\n            else '持平' end as pft_type,\r\n       count(*) as cust_cnt\r\nfrom pft\r\ngroup by 1\r\norder by 1;",
+      "predicted_sql": "WITH pnl AS (\n  SELECT\n    s_end.pty_id,\n    (s_end.nm_tot_aset + s_end.fc_pur_aset)\n      - (s_beg.nm_tot_aset + s_beg.fc_pur_aset)\n      + COALESCE(f.cash_out_sum, 0) - COALESCE(f.cash_in_sum, 0) AS pnl_amt\n  FROM dws_cust_aset_d s_end\n  JOIN dws_cust_aset_d s_beg ON s_end.pty_id = s_beg.pty_id\n  LEFT JOIN (\n    SELECT pty_id,\n           SUM(cash_in) AS cash_in_sum,\n           SUM(cash_out) AS cash_out_sum\n    FROM dws_cust_fin_d\n    WHERE data_dt BETWEEN '20260101' AND '20260331'\n    GROUP BY pty_id\n  ) f ON s_end.pty_id = f.pty_id\n  WHERE s_end.data_dt = '20260331'\n    AND s_beg.data_dt = '20260101'\n)\nSELECT\n  CASE\n    WHEN pnl_amt > 0 THEN '盈利'\n    WHEN pnl_amt < 0 THEN '亏损'\n    ELSE '持平'\n  END AS pnl_group,\n  COUNT(*) AS cust_count\nFROM pnl\nGROUP BY 1\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "85",
+      "question": "",
+      "gold_sql": "select a.pty_id,\r\n       sum(coalesce(b.buy_amt,0))+sum(coalesce(b.sell_amt,0)) as tran_amt\r\nfrom (select distinct pty_id\r\n      from dws_cust_fin_d\r\n      where data_dt between '20260101' and '20260331' and cash_in>500000) a\r\nleft join dwd_cust_tran_d b on a.pty_id=b.pty_id and b.data_dt between '20260101' and '20260331'\r\ngroup by a.pty_id\r\norder by tran_amt desc;",
+      "predicted_sql": "WITH daily_cash AS (\n  SELECT pty_id, data_dt, SUM(cash_in) AS daily_cash_in\n  FROM dws_cust_fin_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id, data_dt\n),\nbig_cash AS (\n  SELECT DISTINCT pty_id FROM daily_cash WHERE daily_cash_in > 500000\n)\nSELECT b.pty_id, COALESCE(t.tot_amt, 0) AS q1_tran_amt\nFROM big_cash b\nLEFT JOIN (\n  SELECT pty_id, SUM(buy_amt + sell_amt) AS tot_amt\n  FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n) t ON b.pty_id = t.pty_id\nORDER BY q1_tran_amt DESC, b.pty_id;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.390483,
+        "reward": 0.5,
+        "score": 70.7107,
+        "gold_mean_ms": 13.3334,
+        "predicted_mean_ms": 34.5786,
+        "ratios": [
+          0.326224,
+          0.626069,
+          0.355716,
+          0.339505,
+          0.304902
+        ]
+      },
+      "gold_row_count": 15,
+      "predicted_row_count": 15,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "86",
+      "question": "",
+      "gold_sql": "with first_tran as\r\n(\r\nselect pty_id, min(data_dt) as first_dt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect substring(first_dt,1,6) as mon, count(*) as new_cust_cnt\r\nfrom first_tran\r\ngroup by 1\r\norder by 1;",
+      "predicted_sql": "WITH first_tran AS (\n  SELECT pty_id, MIN(data_dt) AS first_dt\n  FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n    AND (buy_amt > 0 OR sell_amt > 0)\n  GROUP BY pty_id\n)\nSELECT SUBSTR(first_dt, 1, 6) AS ym, COUNT(*) AS new_cust_count\nFROM first_tran\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 0.728697,
+        "reward": 0.75,
+        "score": 86.6025,
+        "gold_mean_ms": 13.3672,
+        "predicted_mean_ms": 18.3542,
+        "ratios": [
+          0.663579,
+          0.833097,
+          0.71253,
+          0.688516,
+          0.745763
+        ]
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "87",
+      "question": "",
+      "gold_sql": "select b.org_name,\r\n       count(*) as cust_cnt,\r\n       sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end) as hv_cnt,\r\n       round(sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end)*100.0/count(*),2) as hv_pct\r\nfrom ads_cust_info_d a\r\nleft join dim_branch b on a.org_id=b.org_id\r\nleft join dws_cust_aset_d c on a.pty_id=c.pty_id and c.data_dt='20260331'\r\nwhere a.data_dt='20260531'\r\ngroup by b.org_name\r\nhaving sum(case when coalesce(c.nm_tot_aset,0)+coalesce(c.fc_pur_aset,0)>1000000 then 1 else 0 end)>0\r\norder by hv_cnt desc, b.org_name;",
+      "predicted_sql": "WITH high_val AS (\n  SELECT a.pty_id, b.org_name\n  FROM ads_cust_info_d a\n  JOIN dim_branch b ON a.org_id = b.org_id\n  JOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\n  WHERE s.data_dt = '20260331'\n    AND s.nm_tot_aset + s.fc_pur_aset > 1000000\n),\nbranch_total AS (\n  SELECT b.org_name, COUNT(*) AS total_count\n  FROM ads_cust_info_d a\n  JOIN dim_branch b ON a.org_id = b.org_id\n  GROUP BY b.org_name\n)\nSELECT h.org_name,\n       COUNT(*) AS high_val_count,\n       ROUND(COUNT(*)::numeric / NULLIF(t.total_count, 0), 4) AS ratio\nFROM high_val h\nJOIN branch_total t ON h.org_name = t.org_name\nGROUP BY h.org_name, t.total_count\nORDER BY high_val_count DESC, h.org_name;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 5,
+      "predicted_row_count": 5,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "88",
+      "question": "",
+      "gold_sql": "select b.prdt_name, b.prdt_type_name,\r\n       count(distinct a.pty_id) as holder_cnt,\r\n       sum(a.mkt_val) as tot_val\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331'\r\ngroup by b.prdt_name, b.prdt_type_name\r\norder by tot_val desc nulls last\r\nlimit 20;",
+      "predicted_sql": "SELECT h.prdt_id, p.prdt_name,\n       SUM(h.mkt_val) AS total_mkt_val,\n       COUNT(DISTINCT h.pty_id) AS hold_cust_count\nFROM dwd_cust_hold_d h\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\nGROUP BY h.prdt_id, p.prdt_name\nORDER BY total_mkt_val DESC\nLIMIT 20;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 20,
+      "predicted_row_count": 20,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "89",
+      "question": "",
+      "gold_sql": "with tran as\r\n(\r\nselect pty_id, sum(buy_amt) as buy_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n),\r\naset as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d\r\nwhere data_dt='20260331'\r\n)\r\nselect a.pty_id, t.buy_amt, a.tot_aset,\r\n       round(t.buy_amt/nullif(a.tot_aset,0),2) as turnover_ratio\r\nfrom tran t\r\ninner join aset a on t.pty_id=a.pty_id and a.tot_aset>0\r\norder by turnover_ratio desc\r\nlimit 10;",
+      "predicted_sql": "WITH q1_buy AS (\n  SELECT pty_id, SUM(buy_amt) AS total_buy\n  FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n),\nend_asset AS (\n  SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset\n  FROM dws_cust_aset_d\n  WHERE data_dt = '20260331'\n)\nSELECT q.pty_id, q.total_buy, e.total_asset,\n       q.total_buy / NULLIF(e.total_asset, 0) AS ratio\nFROM q1_buy q\nJOIN end_asset e ON q.pty_id = e.pty_id\nWHERE e.total_asset > 0\nORDER BY ratio DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "90",
+      "question": "",
+      "gold_sql": "with m_aset as\r\n(\r\nselect substring(data_dt,1,6) as mon,\r\n       sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0)) as tot_aset\r\nfrom dws_cust_aset_d\r\ngroup by substring(data_dt,1,6)\r\n)\r\nselect mon, round(tot_aset,2) as tot_aset,\r\n       round((tot_aset-lag(tot_aset) over(order by mon))*100.0\r\n             /nullif(lag(tot_aset) over(order by mon),0),2) as mom_pct\r\nfrom m_aset\r\norder by mon;",
+      "predicted_sql": "WITH month_asset AS (\n  SELECT\n    SUBSTR(data_dt, 1, 6) AS ym,\n    SUM(nm_tot_aset + fc_pur_aset) AS total_asset\n  FROM dws_cust_aset_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY 1\n)\nSELECT ym, total_asset,\n       (total_asset - LAG(total_asset) OVER (ORDER BY ym))\n         / NULLIF(LAG(total_asset) OVER (ORDER BY ym), 0) AS mom_change_rate\nFROM month_asset\nORDER BY ym;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "91",
+      "question": "",
+      "gold_sql": "with fc_cust as\r\n(\r\nselect distinct pty_id\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331' and sys_source='fc'\r\n)\r\nselect c.describe as cust_lvl,\r\n       count(*) as cust_cnt,\r\n       round(avg(a.cust_age),1) as avg_age,\r\n       round(avg(coalesce(d.nm_tot_aset,0)+coalesce(d.fc_pur_aset,0)),2) as avg_aset\r\nfrom fc_cust f\r\ninner join ads_cust_info_d a on f.pty_id=a.pty_id and a.data_dt='20260531'\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\nleft join dws_cust_aset_d d on a.pty_id=d.pty_id and d.data_dt='20260331'\r\ngroup by c.describe\r\norder by cust_cnt desc;",
+      "predicted_sql": "SELECT a.cust_lvl_cd,\n       COUNT(DISTINCT t.pty_id) AS cust_count,\n       AVG(a.cust_age) AS avg_age,\n       AVG(s.nm_tot_aset + s.fc_pur_aset) AS avg_total_asset\nFROM ads_cust_info_d a\nJOIN dwd_cust_tran_d t ON a.pty_id = t.pty_id\nJOIN dws_cust_aset_d s ON a.pty_id = s.pty_id\nWHERE t.data_dt BETWEEN '20260101' AND '20260331'\n  AND t.sys_source = 'fc'\n  AND (t.buy_amt > 0 OR t.sell_amt > 0)\n  AND s.data_dt = '20260331'\nGROUP BY a.cust_lvl_cd\nORDER BY a.cust_lvl_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 5,
+      "predicted_row_count": 5,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "92",
+      "question": "",
+      "gold_sql": "with hkd_cust as\r\n(\r\nselect distinct pty_id\r\nfrom dwd_cust_hold_d\r\nwhere data_dt='20260331' and ccy='2'\r\n)\r\nselect c.describe as cust_lvl,\r\n       count(*) as cnt,\r\n       round(avg(a.cust_age),1) as avg_age\r\nfrom hkd_cust h\r\ninner join ads_cust_info_d a on h.pty_id=a.pty_id and a.data_dt='20260531'\r\nleft join dim_public c on a.cust_lvl_cd=c.code and c.code_type_id='100'\r\ngroup by c.describe\r\norder by cnt desc, cust_lvl;",
+      "predicted_sql": "SELECT a.cust_lvl_cd,\n       COUNT(DISTINCT h.pty_id) AS hkd_cust_count,\n       AVG(a.cust_age) AS avg_age\nFROM ads_cust_info_d a\nJOIN dwd_cust_hold_d h ON a.pty_id = h.pty_id\nWHERE h.data_dt = '20260331'\n  AND h.ccy = '2'\nGROUP BY a.cust_lvl_cd\nORDER BY a.cust_lvl_cd;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "93",
+      "question": "",
+      "gold_sql": "with bgn as\r\n(\r\nselect pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d where data_dt='20260101' group by pty_id\r\n),\r\nendd as\r\n(\r\nselect pty_id, count(distinct prdt_id) as prdt_cnt\r\nfrom dwd_cust_hold_d where data_dt='20260331' group by pty_id\r\n)\r\nselect case when e.prdt_cnt>b.prdt_cnt then '增加'\r\n            when e.prdt_cnt=b.prdt_cnt then '不变'\r\n            else '减少' end as chg_type,\r\n       count(*) as cnt\r\nfrom bgn b\r\ninner join endd e on b.pty_id=e.pty_id\r\ngroup by 1\r\norder by chg_type;",
+      "predicted_sql": "WITH beg_cnt AS (\n  SELECT pty_id, COUNT(DISTINCT prdt_id) AS prdt_cnt\n  FROM dwd_cust_hold_d\n  WHERE data_dt = '20260101'\n  GROUP BY pty_id\n),\nend_cnt AS (\n  SELECT pty_id, COUNT(DISTINCT prdt_id) AS prdt_cnt\n  FROM dwd_cust_hold_d\n  WHERE data_dt = '20260331'\n  GROUP BY pty_id\n)\nSELECT\n  CASE\n    WHEN COALESCE(e.prdt_cnt, 0) > COALESCE(b.prdt_cnt, 0) THEN '增加'\n    WHEN COALESCE(e.prdt_cnt, 0) < COALESCE(b.prdt_cnt, 0) THEN '减少'\n    ELSE '不变'\n  END AS change_type,\n  COUNT(*) AS cust_count\nFROM beg_cnt b\nFULL OUTER JOIN end_cnt e ON b.pty_id = e.pty_id\nGROUP BY 1\nORDER BY cust_count DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 3,
+      "predicted_row_count": 3,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "94",
+      "question": "",
+      "gold_sql": "with kcb as\r\n(\r\nselect distinct a.pty_id\r\nfrom dwd_cust_hold_d a\r\ninner join dim_product b on a.prdt_id=b.prdt_id\r\nwhere a.data_dt='20260331' and b.prdt_type_name='科创板'\r\n)\r\nselect case when k.pty_id is null then '未持有科创板' else '持有科创板' end as kcb_flag,\r\n       count(*) as cust_cnt,\r\n       round(avg(coalesce(t.nm_tot_aset,0)+coalesce(t.fc_pur_aset,0)),2) as avg_aset\r\nfrom dws_cust_aset_d t\r\nleft join kcb k on t.pty_id=k.pty_id\r\nwhere t.data_dt='20260331'\r\ngroup by 1\r\norder by kcb_flag;",
+      "predicted_sql": "WITH kechuang_holders AS (\n  SELECT DISTINCT h.pty_id\n  FROM dwd_cust_hold_d h\n  JOIN dim_product p ON h.prdt_id = p.prdt_id\n  WHERE h.data_dt = '20260331'\n    AND p.sor_prdt_id LIKE '688%'\n)\nSELECT\n  CASE WHEN k.pty_id IS NOT NULL THEN '持有科创板' ELSE '未持有科创板' END AS holder_group,\n  AVG(s.nm_tot_aset + s.fc_pur_aset) AS avg_total_asset\nFROM dws_cust_aset_d s\nLEFT JOIN kechuang_holders k ON s.pty_id = k.pty_id\nWHERE s.data_dt = '20260331'\nGROUP BY 1\nORDER BY 1;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 2,
+      "predicted_row_count": 2,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "95",
+      "question": "",
+      "gold_sql": "with tot as\r\n(\r\nselect pty_id, coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0) as tot_aset\r\nfrom dws_cust_aset_d where data_dt='20260331'\r\n)\r\nselect case when t.tot_aset>1000000 then '高净值' else '普通' end as cust_grp,\r\n       c.up_prdt_type_name,\r\n       sum(h.mkt_val) as mkt_val\r\nfrom dwd_cust_hold_d h\r\ninner join tot t on h.pty_id=t.pty_id\r\ninner join dim_product c on h.prdt_id=c.prdt_id\r\nwhere h.data_dt='20260331'\r\ngroup by 1,2\r\norder by 1, mkt_val desc nulls last;",
+      "predicted_sql": "WITH cust_asset AS (\n  SELECT pty_id, nm_tot_aset + fc_pur_aset AS total_asset\n  FROM dws_cust_aset_d\n  WHERE data_dt = '20260331'\n),\ncust_type AS (\n  SELECT pty_id,\n         CASE WHEN total_asset > 1000000 THEN '高净值' ELSE '普通' END AS cust_group\n  FROM cust_asset\n)\nSELECT c.cust_group, p.up_prdt_type_name, SUM(h.mkt_val) AS total_mkt_val\nFROM cust_type c\nJOIN dwd_cust_hold_d h ON c.pty_id = h.pty_id\nJOIN dim_product p ON h.prdt_id = p.prdt_id\nWHERE h.data_dt = '20260331'\nGROUP BY c.cust_group, p.up_prdt_type_name\nORDER BY c.cust_group, total_mkt_val DESC;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 1,
+      "rves": {
+        "time_ratio": 1.008031,
+        "reward": 1.0,
+        "score": 100.0,
+        "gold_mean_ms": 185.7492,
+        "predicted_mean_ms": 184.2992,
+        "ratios": [
+          1.021538,
+          0.989427,
+          1.025822,
+          0.995135,
+          1.008235
+        ]
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "96",
+      "question": "",
+      "gold_sql": "with avg_aset as\r\n(\r\nselect pty_id, sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90 as avg_aset\r\nfrom dws_cust_aset_d\r\ngroup by pty_id\r\nhaving sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90>300000\r\n),\r\ntran as\r\n(\r\nselect pty_id, sum(buy_amt)+sum(sell_amt) as tran_amt\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n)\r\nselect a.pty_id, round(a.avg_aset,2) as avg_aset, t.tran_amt\r\nfrom avg_aset a\r\nleft join tran t on a.pty_id=t.pty_id\r\norder by t.tran_amt desc nulls last\r\nlimit 10;",
+      "predicted_sql": "WITH avg_asset AS (\n  SELECT pty_id\n  FROM dws_cust_aset_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n  HAVING AVG(nm_tot_aset) > 300000\n),\nq1_tran AS (\n  SELECT pty_id, SUM(buy_amt + sell_amt) AS total_tran_amt\n  FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n)\nSELECT q.pty_id, q.total_tran_amt\nFROM q1_tran q\nJOIN avg_asset a ON q.pty_id = a.pty_id\nORDER BY q.total_tran_amt DESC\nLIMIT 10;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 10,
+      "predicted_row_count": 10,
+      "empty_result_match": false,
+      "errors": []
+    },
+    {
+      "id": "97",
+      "question": "",
+      "gold_sql": "with rake as\r\n(\r\nselect pty_id, sum(coalesce(buy_rake,0))+sum(coalesce(sell_rake,0)) as tot_rake\r\nfrom dwd_cust_tran_d\r\nwhere data_dt between '20260101' and '20260331'\r\ngroup by pty_id\r\n),\r\naset as\r\n(\r\nselect pty_id, sum(coalesce(nm_tot_aset,0)+coalesce(fc_pur_aset,0))/90 as avg_aset\r\nfrom dws_cust_aset_d\r\ngroup by pty_id\r\n),\r\nscore as\r\n(\r\nselect coalesce(a.pty_id,r.pty_id) as pty_id,\r\n       coalesce(r.tot_rake,0) as tot_rake,\r\n       coalesce(a.avg_aset,0) as avg_aset,\r\n       rank() over(order by coalesce(r.tot_rake,0) desc) as rake_rank,\r\n       rank() over(order by coalesce(a.avg_aset,0) desc) as aset_rank\r\nfrom aset a\r\nfull join rake r on a.pty_id=r.pty_id\r\n)\r\nselect pty_id, tot_rake, round(avg_aset,2) as avg_aset, rake_rank, aset_rank,\r\n       rake_rank+aset_rank as total_rank\r\nfrom score\r\norder by total_rank, pty_id\r\nlimit 20;",
+      "predicted_sql": "WITH rake AS (\n  SELECT pty_id, SUM(buy_rake + sell_rake) AS total_rake\n  FROM dwd_cust_tran_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n),\navg_asset AS (\n  SELECT pty_id, AVG(nm_tot_aset) AS avg_a\n  FROM dws_cust_aset_d\n  WHERE data_dt BETWEEN '20260101' AND '20260331'\n  GROUP BY pty_id\n),\nrake_rk AS (\n  SELECT pty_id, RANK() OVER (ORDER BY total_rake DESC) AS rk_rake\n  FROM rake\n),\nasset_rk AS (\n  SELECT pty_id, RANK() OVER (ORDER BY avg_a DESC) AS rk_asset\n  FROM avg_asset\n)\nSELECT r.pty_id, r.rk_rake, a.rk_asset, r.rk_rake + a.rk_asset AS sum_rank\nFROM rake_rk r\nJOIN asset_rk a ON r.pty_id = a.pty_id\nORDER BY sum_rank, r.pty_id\nLIMIT 20;",
+      "prediction_present": true,
+      "em": 0,
+      "ex": 0,
+      "rves": {
+        "time_ratio": 0.0,
+        "reward": 0.0,
+        "score": 0.0,
+        "gold_mean_ms": null,
+        "predicted_mean_ms": null,
+        "ratios": []
+      },
+      "gold_row_count": 20,
+      "predicted_row_count": 20,
+      "empty_result_match": false,
+      "errors": []
+    }
+  ]
+}
