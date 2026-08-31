@@ -1,23 +1,6 @@
-.DS_Store
-~$*
-
-# Local secrets. Commit only the safe template.
-.env
-.env.*
-!.env.example
-.venv/
-__pycache__/
-
-# Benchmark datasets are downloaded locally and contain multi-GB archives/databases.
-workspace/dataset/*
-!workspace/dataset/README.md
-
-# Local evaluator dependencies and generated runs.
-workspace/standard/eval_runs/
-workspace/standard/.deps_test_suite/
-workspace/standard/.deps_bird/
-workspace/standard/spider_eval/.deps/
-workspace/standard/spider_eval/.nltk_data/
-workspace/skills/at2s/skills/db-access/access.md
-workspace/skills/at2s/skills/kb-refine/config.md
-
+generated/
+workspace/generated/
+workspace/skills/at2s/skills/db-access/.venv-win/
+workspace/skills/at2s/skills/db-access/.venv/
+workspace/skills/at2s/skills/db-access/.env
+workspace/skills/at2s/skills/db-access/scripts/

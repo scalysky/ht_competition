@@ -1,2 +1,0 @@
-# No Python packages are required. The evaluator uses Python's standard library
-# and the psql executable bundled with PostgreSQL.
