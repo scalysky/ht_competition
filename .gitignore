@@ -28,4 +28,3 @@ workspace/generated/
 # Virtual environment for db-access
 workspace/skills/at2s/skills/db-access/.venv-win/
 workspace/skills/at2s/skills/db-access/.venv/
-workspace/skills/at2s/skills/db-access/scripts/
